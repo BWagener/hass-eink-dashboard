@@ -751,6 +751,23 @@ class TestEinkDashboardImage:
             assert config["date_format"] == "dmy"
             assert config["time_format"] == "24"
 
+    async def test_time_zone_forwarded_to_render(
+        self, hass: HomeAssistant, make_entity: Callable[..., Any]
+    ) -> None:
+        # HA's configured time zone is passed to render_dashboard so
+        # graph time labels show local time.
+        from custom_components.eink_dashboard.render import render_dashboard
+
+        hass.config.time_zone = "Europe/Berlin"
+        entity, _entry = make_entity({"width": 200, "height": 100})
+        with patch(
+            "custom_components.eink_dashboard.image.render_dashboard",
+            wraps=render_dashboard,
+        ) as mock_render:
+            await entity._async_refresh(None)
+            config = mock_render.call_args[0][1]
+            assert config["time_zone"] == "Europe/Berlin"
+
 
 class TestImagePlatformSetup:
     async def test_async_setup_entry(self, hass: HomeAssistant) -> None:

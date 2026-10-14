@@ -231,6 +231,16 @@ async def _async_get_locale(
     return number_format, language, first_weekday, date_format, time_format
 
 
+def _ha_time_zone(hass: HomeAssistant) -> str:
+    """Return HA's configured IANA time zone name, or ``""``.
+
+    Renderers show local times in this zone; an empty value makes
+    them fall back to UTC.
+    """
+    tz = getattr(hass.config, "time_zone", "")
+    return tz if isinstance(tz, str) else ""
+
+
 async def _build_display_config(
     hass: HomeAssistant, entry_id: str
 ) -> dict[str, Any]:
@@ -249,8 +259,8 @@ async def _build_display_config(
         Dict with ``width``, ``height``, ``display_levels``,
         ``font_dir``, ``use_system_fonts``, ``number_format``,
         ``language``, ``first_weekday``, ``date_format``,
-        ``time_format``, ``states``, and (when battery data is
-        available) ``device_battery_level`` and
+        ``time_format``, ``time_zone``, ``states``, and (when
+        battery data is available) ``device_battery_level`` and
         ``device_battery_charging`` keys suitable for
         ``render_widget_svg()``.
     """
@@ -296,6 +306,7 @@ async def _build_display_config(
         "first_weekday": first_weekday,
         "date_format": date_format,
         "time_format": time_format,
+        "time_zone": _ha_time_zone(hass),
         "states": states,
     }
     level, is_charging = resolve_battery_level(

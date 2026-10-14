@@ -67,6 +67,10 @@ lighter dithered look.
   **Pixel-perfect text**, smaller sizes are rounded up to 12 px. In list
   widgets (calendar, waste schedule, entities) a **Max row height** of
   about 22 px or more keeps rows readable.
+- **Graph grid lines are dotted on 2-level displays.** The graph's
+  optional grid lines (**Axes** section) are drawn as dotted black
+  lines when the display is set to 2 levels, so they stay faint
+  without dithering.
 - **Hide small icons in dense lists.** At small row heights the icon
   circles become solid black dots. Use **Hide icon** in the widget's
   **Appearance** section.
