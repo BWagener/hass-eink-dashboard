@@ -939,6 +939,32 @@ class TestEinkDashboardOptionsFlow:
         assert result["type"] is FlowResultType.CREATE_ENTRY
         assert result["data"]["black_text"] is True
 
+    async def test_display_settings_default_black_dividers_is_false(
+        self, hass: HomeAssistant
+    ) -> None:
+        # Dividers keep their gray colour unless the user opts in.
+        flow = await _make_options_flow(hass, {"update_interval": 60})
+        result = await flow.async_step_display_settings(None)
+
+        markers = {
+            k.schema: k
+            for k in result["data_schema"].schema
+            if hasattr(k, "schema")
+        }
+        assert markers["black_dividers"].default() is False
+
+    async def test_display_settings_saves_black_dividers_on(
+        self, hass: HomeAssistant
+    ) -> None:
+        # Enabling black dividers persists it as a top-level option.
+        flow = await _make_options_flow(hass, {"update_interval": 60})
+        result = await flow.async_step_display_settings(
+            {"update_interval": 60, "black_dividers": True}
+        )
+
+        assert result["type"] is FlowResultType.CREATE_ENTRY
+        assert result["data"]["black_dividers"] is True
+
     async def test_display_settings_use_system_fonts_before_font_dir(
         self, hass: HomeAssistant
     ) -> None:

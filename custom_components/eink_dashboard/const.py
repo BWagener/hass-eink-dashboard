@@ -40,6 +40,8 @@ DEFAULT_SATURATION = 1.0
 DEFAULT_USE_SYSTEM_FONTS = False
 # Render every non-white text colour (gray labels etc.) as black.
 DEFAULT_BLACK_TEXT = False
+# Render dividers, separators and left card bars in solid black.
+DEFAULT_BLACK_DIVIDERS = False
 DEFAULT_ROW_H = 56
 # Pixel density the DEFAULT_ROW_H baseline was designed for (Kindle
 # Paperwhite 1/2, 6" at 758x1024).  List rows default to the same

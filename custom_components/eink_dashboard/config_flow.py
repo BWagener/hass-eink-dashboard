@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 from .const import (
+    DEFAULT_BLACK_DIVIDERS,
     DEFAULT_BLACK_TEXT,
     DEFAULT_DISPLAY_LEVELS,
     DEFAULT_DITHER_ALGORITHM,
@@ -330,6 +331,10 @@ def _build_display_settings_schema(
             vol.Optional(
                 "black_text",
                 default=opts.get("black_text", DEFAULT_BLACK_TEXT),
+            ): bool,
+            vol.Optional(
+                "black_dividers",
+                default=opts.get("black_dividers", DEFAULT_BLACK_DIVIDERS),
             ): bool,
             vol.Optional(
                 "use_system_fonts",
@@ -1345,6 +1350,7 @@ class EinkDashboardOptionsFlow(OptionsFlow):
         """Update refresh interval, optimize, and image quality settings.
 
         Also collects ``black_text`` (top-level, off by default),
+        ``black_dividers`` (top-level, off by default),
         ``use_system_fonts`` (top-level, off by default) and, via the
         Advanced section, ``font_dir``.  The latter two add glyph
         fallback fonts for scripts the bundled Roboto font does not

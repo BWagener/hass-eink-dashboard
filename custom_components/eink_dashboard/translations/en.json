@@ -161,12 +161,14 @@
           "optimize": "E-ink optimization",
           "display_levels": "Display levels",
           "black_text": "Black text",
+          "black_dividers": "Black dividers",
           "use_system_fonts": "Use system fonts"
         },
         "data_description": {
           "optimize": "Apply autocontrast and quantization for e-ink displays",
           "display_levels": "Number of shades or colors the display can reproduce (fewer = higher contrast, more banding)",
           "black_text": "Render all text in black instead of gray, so labels stay crisp instead of being dithered into dot patterns on displays with few gray levels. White text on dark backgrounds is kept.",
+          "black_dividers": "Draw list dividers, separators and left card bars in solid black instead of gray, so thin lines stay solid instead of being dithered into dotted lines on displays with few gray levels.",
           "use_system_fonts": "Also use fonts already installed on this Home Assistant host as a fallback for characters the bundled font and custom font directory do not cover. Off by default so dashboards render identically across HA OS, Docker, and other machines; enabling it can make text look different depending on what is installed on the host."
         },
         "sections": {
