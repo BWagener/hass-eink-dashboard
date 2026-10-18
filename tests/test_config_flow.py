@@ -1064,10 +1064,9 @@ class TestEinkDashboardOptionsFlow:
     async def test_display_settings_saves_optimize_toggle_on(
         self, hass: HomeAssistant
     ) -> None:
-        # Turning optimize on in the same submission where it was
-        # previously off must succeed even though the eink-only
-        # fields are absent from the schema built from the stale
-        # stored value (only font_dir was available to submit).
+        # Turning optimize on re-shows the form with the eink-only
+        # fields in an expanded Advanced section; the second
+        # submission (including those fields) is then saved.
         flow = await _make_options_flow(
             hass, {"update_interval": 60, "optimize": False}
         )
@@ -1079,11 +1078,76 @@ class TestEinkDashboardOptionsFlow:
             }
         )
 
+        assert result["type"] is FlowResultType.FORM
+        assert result["step_id"] == "display_settings"
+        top_level = {
+            k.schema: (k, v)
+            for k, v in result["data_schema"].schema.items()
+            if hasattr(k, "schema")
+        }
+        assert top_level["optimize"][0].default() is True
+        advanced = top_level["advanced_section"][1]
+        assert advanced.options["collapsed"] is False
+        section_fields = {
+            k.schema for k in advanced.schema.schema if hasattr(k, "schema")
+        }
+        assert {"dither_algorithm", "exposure", "saturation"} <= (
+            section_fields
+        )
+        assert (
+            "Advanced" in result["description_placeholders"]["optimize_note"]
+        )
+
+        result = await flow.async_step_display_settings(
+            {
+                "update_interval": 60,
+                "optimize": True,
+                "display_levels": "2",
+                "advanced_section": {"dither_algorithm": "atkinson"},
+            }
+        )
+
         assert result["type"] is FlowResultType.CREATE_ENTRY
         assert result["data"]["optimize"] is True
-        assert "dither_algorithm" not in result["data"]
-        assert "exposure" not in result["data"]
-        assert "saturation" not in result["data"]
+        assert result["data"]["display_levels"] == 2
+        assert result["data"]["dither_algorithm"] == "atkinson"
+
+    async def test_display_settings_reshows_when_leaving_256_levels(
+        self, hass: HomeAssistant
+    ) -> None:
+        # Switching away from 256 levels reveals exposure/saturation,
+        # so the form is shown again instead of saving.
+        flow = await _make_options_flow(
+            hass,
+            {"update_interval": 60, "optimize": True, "display_levels": 256},
+        )
+        result = await flow.async_step_display_settings(
+            {
+                "update_interval": 60,
+                "optimize": True,
+                "display_levels": "2",
+            }
+        )
+
+        assert result["type"] is FlowResultType.FORM
+
+    async def test_display_settings_saves_when_no_new_fields(
+        self, hass: HomeAssistant
+    ) -> None:
+        # Turning optimize off hides fields, so the form saves at once.
+        flow = await _make_options_flow(
+            hass, {"update_interval": 60, "optimize": True}
+        )
+        result = await flow.async_step_display_settings(
+            {
+                "update_interval": 60,
+                "optimize": False,
+                "display_levels": "16",
+            }
+        )
+
+        assert result["type"] is FlowResultType.CREATE_ENTRY
+        assert result["data"]["optimize"] is False
 
     async def test_display_settings_preserves_advanced_when_optimize_off(
         self, hass: HomeAssistant
