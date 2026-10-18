@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import logging
 from datetime import timedelta
@@ -933,6 +934,32 @@ _MANIFEST = json.loads(
 _VERSION = _MANIFEST["version"]
 
 
+def _frontend_asset_version() -> str:
+    """Return the cache-busting token for the compiled frontend bundle.
+
+    The card and editor modules are served from fixed URLs and the
+    browser caches them by URL, so a redeployed bundle would otherwise
+    keep serving the previous copy until the user hard-reloads.  The
+    card passes its own ``?v=`` on to the editor it loads, so hashing
+    the compiled assets here makes that token change whenever the
+    bundle changes — which is what actually invalidates the cache.
+    Tying the token to ``manifest.json`` alone is not enough: the
+    version rarely changes between deploys.
+
+    Returns:
+        ``"<manifest version>.<12 hex chars>"``, or just the manifest
+        version when no compiled bundle is present (e.g. in tests).
+    """
+    assets = sorted(_FRONTEND_DIR.glob("*.js"))
+    if not assets:
+        return _VERSION
+    digest = hashlib.sha256()
+    for path in assets:
+        digest.update(path.name.encode("utf-8"))
+        digest.update(path.read_bytes())
+    return f"{_VERSION}.{digest.hexdigest()[:12]}"
+
+
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Register HTTP views and static paths for the integration."""
     _LOGGER.debug("async_setup: registering HTTP views and static paths")
@@ -958,9 +985,10 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             ),
         ]
     )
+    asset_version = await hass.async_add_executor_job(_frontend_asset_version)
     add_extra_js_url(
         hass,
-        f"/eink_dashboard/frontend/eink-dashboard-card.js?v={_VERSION}",
+        f"/eink_dashboard/frontend/eink-dashboard-card.js?v={asset_version}",
     )
     websocket_api.async_register_command(hass, ws_render_widget)
     websocket_api.async_register_command(hass, ws_render_widgets)
