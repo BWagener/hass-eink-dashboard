@@ -713,23 +713,8 @@ class TestRenderEntities:
         assert secondary in sizes
         assert primary > secondary
 
-    def test_entities_bold_value_renders_bold_weight(self) -> None:
-        # bold_value=True renders each row's right-aligned state
-        # value with a bold font-weight attribute in the SVG.
-        widget = {
-            "type": "entities",
-            "x": 0,
-            "y": 0,
-            "w": 400,
-            "h": DEFAULT_ROW_H,
-            "entities": ["sensor.temperature"],
-            "bold_value": True,
-        }
-        svg = render_widget_svg(widget, self._config())
-        assert 'font-weight="bold"' in svg
-
     def test_entities_default_value_not_bold(self) -> None:
-        # Without bold_value, the row value has no bold
+        # By default, the row value has no bold
         # font-weight attribute.
         widget = {
             "type": "entities",
@@ -1051,8 +1036,7 @@ class TestRenderEntities:
         )
 
     def test_entities_fonts_value_weight_bold(self) -> None:
-        # fonts.value.weight="bold" renders the row value in bold even
-        # without the legacy bold_value flag.
+        # fonts.value.weight="bold" renders the row value in bold.
         widget = {
             "type": "entities",
             "x": 0,

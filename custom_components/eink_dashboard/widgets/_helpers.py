@@ -695,7 +695,6 @@ def _entity_text_geometry(
     *,
     value_text: str,
     unit_text: str,
-    value_bold: bool,
     widget: Widget | None = None,
     scale: float = 1.0,
 ) -> EntityTextGeometry:
@@ -719,9 +718,6 @@ def _entity_text_geometry(
         unit_text: Rendered unit string. Empty string means no
             unit is shown, and ``unit_x`` falls back to
             ``value_x``.
-        value_bold: Whether the value is rendered in bold, which
-            changes the font used for measuring ``value_text`` and
-            is the legacy alias for ``fonts.value.weight: "bold"``.
         widget: Widget config dict, forwarded to ``resolve_font`` so
             per-role ``fonts`` overrides apply. ``None`` disables
             overrides (used by callers that only need defaults).
@@ -749,7 +745,7 @@ def _entity_text_geometry(
         source,
         "value",
         max(10, round(section_h * 0.38)),
-        FontWeight.BOLD if value_bold else FontWeight.REGULAR,
+        FontWeight.REGULAR,
         scale=scale,
     )
     value_x = x_off + lpad
@@ -804,7 +800,7 @@ def _entity_info_context(
         widget: Widget config dict.  Recognised keys: ``entity``,
             ``name``, ``icon``, ``unit``, ``hide_icon``,
             ``hide_name``, ``icon_style``, ``card_style``,
-            ``bold_value``, ``decimals``.
+            ``fonts``, ``decimals``.
         config: Display config with ``states`` and
             ``display_levels``.
         section_h: Height of the entity info section in pixels.
@@ -831,7 +827,6 @@ def _entity_info_context(
     hide_name: bool = widget.get("hide_name", False)
     icon_style = widget.get("icon_style")
     card_style = widget.get("card_style", DEFAULT_CARD_STYLE)
-    value_bold: bool = widget.get("bold_value", False)
     states = config.get("states", {})
     display_levels = config.get("display_levels", 16)
 
@@ -923,7 +918,6 @@ def _entity_info_context(
         lpad,
         value_text=value_text,
         unit_text=unit_text,
-        value_bold=value_bold,
         widget=widget,
         scale=config.get("font_scale", 1.0),
     )

@@ -509,8 +509,6 @@ export interface DeviceBatteryWidget extends WidgetBase {
   layout?: "icon" | "chip";
   /** Decorative frame style. */
   card_style?: CardStyle;
-  /** When true, renders the percentage label in bold. */
-  bold_value?: boolean;
 }
 
 /** A single waste-collection type entry in the schedule widget. */
@@ -544,8 +542,6 @@ export interface CalendarWidget extends WidgetBase {
   days_ahead?: number;
   /** Decorative frame style. */
   card_style?: CardStyle;
-  /** When true, renders the event date/time value in bold. */
-  bold_value?: boolean;
   /**
    * Stroke width in pixels of the light-gray dividers between rows,
    * applied on every display type.  ``0`` hides the dividers.
@@ -588,8 +584,6 @@ export interface WasteScheduleWidget extends WidgetBase {
   show_all?: boolean;
   /** Decorative frame style. */
   card_style?: CardStyle;
-  /** When true, renders the date value in bold. */
-  bold_value?: boolean;
   /**
    * Stroke width in pixels of the light-gray dividers between rows,
    * applied on every display type.  ``0`` hides the dividers.
@@ -641,8 +635,6 @@ export interface TileWidget extends WidgetBase {
   card_style?: CardStyle;
   /** Icon circle rendering mode (auto-selected when absent). */
   icon_style?: IconStyle;
-  /** When true, renders the secondary state line in bold. */
-  bold_value?: boolean;
   /**
    * Exact number of decimal places to show for the secondary
    * state value. Overrides HA's `display_precision` and
@@ -785,8 +777,6 @@ export interface EntitiesWidget extends WidgetBase {
    * - ``"none"`` — no circle; icon glyph rendered without decoration.
    */
   icon_style?: IconStyle;
-  /** When true, renders each row's state value in bold. */
-  bold_value?: boolean;
   /**
    * Exact number of decimal places to show for every row's value.
    * Overrides HA's `display_precision` and device-class defaults
@@ -848,8 +838,6 @@ export interface EntityWidget extends WidgetBase {
    * - ``"none"`` — no circle; icon glyph rendered without decoration.
    */
   icon_style?: IconStyle;
-  /** When true, renders the state value in bold. */
-  bold_value?: boolean;
   /**
    * Exact number of decimal places to show for the value.
    * Overrides HA's `display_precision` and device-class defaults
@@ -946,8 +934,6 @@ export interface SensorWidget extends WidgetBase {
    * - ``"none"`` — no circle; icon glyph rendered without decoration.
    */
   icon_style?: IconStyle;
-  /** When true, renders the state value in bold. */
-  bold_value?: boolean;
   /**
    * Exact number of decimal places to show for the value.
    * Overrides HA's `display_precision` and device-class defaults
@@ -1036,11 +1022,6 @@ export interface GaugeWidget extends WidgetBase {
    * Segments must be configured via YAML.
    */
   segments?: GaugeSegment[];
-  /**
-   * When true, renders the center value text in bold instead of
-   * medium weight.
-   */
-  bold_value?: boolean;
 }
 
 /**
@@ -1412,8 +1393,6 @@ export interface GraphWidget extends WidgetBase {
   threshold_4_color?: string;
   /** Explicit grayscale shade override for threshold 4. */
   threshold_4_shade?: "black" | "dark" | "medium" | "light";
-  /** When true, renders the header value text in bold. */
-  bold_value?: boolean;
   /**
    * Exact number of decimal places to show for the header
    * value(s). Overrides HA's `display_precision` and device-class

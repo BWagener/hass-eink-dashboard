@@ -203,9 +203,6 @@ def _build_gauge_context(
             ``"full"``; default ``"standard"``),
             ``header_position`` (``"bottom"`` / ``"top"``;
             default ``"bottom"``),
-            ``bold_value`` (legacy alias for the value role's bold
-            weight; render the value text in bold instead of the
-            default medium weight; default ``False``),
             ``fonts`` (per-role font overrides — a mapping of role
             name to ``{"size": int, "weight": str}``; roles are
             ``"value"``, ``"unit"``, ``"name"``, and ``"segment"``
@@ -213,9 +210,8 @@ def _build_gauge_context(
             widget's derived size scaled by the display-level
             ``font_scale``; an explicit ``size`` is absolute.  An
             omitted ``weight`` keeps the role's default: value
-            ``"medium"`` (``"bold"`` when ``bold_value`` is set),
-            unit ``"regular"``, name ``"regular"``, segment
-            ``"regular"``),
+            ``"medium"``, unit ``"regular"``, name ``"regular"``,
+            segment ``"regular"``),
             ``card_style``, ``segments``, ``x``, ``w``, ``h``.
         config: Display config with ``width``, ``states``, and
             ``display_levels``.
@@ -249,7 +245,6 @@ def _build_gauge_context(
     unit_override = widget.get("unit")
     show_unit: bool = bool(widget.get("show_unit", True))
     attribute: str | None = widget.get("attribute")
-    value_bold: bool = widget.get("bold_value", False)
 
     # Missing entity → blank white canvas.
     state = states.get(entity_id) if entity_id else None
@@ -452,13 +447,12 @@ def _build_gauge_context(
     needle_border_r = needle_dot_r + 2
 
     # --- Text layout ---
-    # Value: large text centred at the arc centre.  ``bold_value`` is
-    # the legacy alias for this role's bold weight.
+    # Value: large text centred at the arc centre.
     value_font_sz, value_weight = resolve_font(
         widget,
         "value",
         max(12, round(radius * 0.45)),
-        FontWeight.BOLD if value_bold else FontWeight.MEDIUM,
+        FontWeight.MEDIUM,
         scale=font_scale,
     )
     value_x = cx

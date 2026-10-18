@@ -85,9 +85,7 @@ def _build_entities_context(
             ``entities`` (list of row configs),
             ``title`` (optional label above the card),
             ``icon_style`` (``"filled"`` / ``"outlined"`` /
-            ``"none"``), ``bold_value`` (render the right-aligned
-            state value in bold; default ``False``; legacy alias
-            for ``fonts.value.weight: "bold"``),
+            ``"none"``),
             ``fonts`` (per-role font overrides — a mapping of role
             name to ``{"size": int, "weight": str}``; roles are
             ``"title"``, ``"row_primary"`` (the entity name),
@@ -134,7 +132,6 @@ def _build_entities_context(
     title: str = widget.get("title", "")
     icon_style = widget.get("icon_style")
     card_style = widget.get("card_style", DEFAULT_CARD_STYLE)
-    value_bold: bool = widget.get("bold_value", False)
     hide_icon: bool = bool(widget.get("hide_icon", False))
     max_row_h = _max_row_height(widget, config)
     entity_configs: list = widget.get("entities", [])
@@ -301,7 +298,7 @@ def _build_entities_context(
         widget,
         "value",
         m.font_primary,
-        FontWeight.BOLD if value_bold else FontWeight.REGULAR,
+        FontWeight.REGULAR,
         scale=font_scale,
     )
     section_font_sz, section_weight = resolve_font(
