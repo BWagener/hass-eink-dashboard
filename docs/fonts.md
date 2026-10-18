@@ -30,27 +30,33 @@ browser uses the same font as the rendered image.
 
 ## Pixel-perfect text
 
-TRMNL glyphs are drawn on a pixel grid, so they are only sharp at
-their native sizes (12, 16, 21 px) or whole multiples of them (24,
-32, 42, …). At other sizes the font pixels straddle screen pixels and
-turn into gray smudges, which a pure black-and-white display turns
-into blobs — especially for bold text.
+TRMNL glyphs are drawn on a pixel grid, so they are only sharp at their
+native sizes (12, 16, 21 px) or whole multiples of them (24, 32, 42, …).
+At other sizes the font pixels straddle screen pixels and turn into gray
+smudges, which a pure black-and-white display (or the *Black and white
+(every non-white pixel black)* dither algorithm) turns into blobs —
+especially for bold text.
 
 The **Pixel-perfect text** toggle (**Configure → Display settings**,
 on by default) snaps every TRMNL font size to the nearest native size
 or multiple and renders text without anti-aliasing, so glyphs are
 pure black and white. Text may be a pixel or two larger or smaller
 than without it, and the font is never rendered below 12 px. The
-option has no effect when Roboto is selected.
+option has no effect when Roboto is selected. The toggle matters most
+on low-resolution displays such as the TRMNL OG, where text is only a
+few pixels tall; for the full set of recommended settings, see
+[Sharp text on low-resolution displays](low_resolution.md).
 
 ## Black text
 
-Names and secondary labels are drawn in gray. On displays with few
-gray levels, dithering turns that gray into a speckled dot pattern
-that is hard to read at small sizes. The **Black text** toggle
-(**Configure → Display settings**, off by default) renders every
-non-white text colour in black. White text on dark backgrounds is
-kept, and icons, dividers and other shapes keep their colours.
+Names and secondary labels are drawn in gray. On displays with few gray
+levels, dithering turns that gray into a speckled dot pattern that is
+hard to read at small sizes. The **Black text** toggle (**Configure →
+Display settings**, off by default) renders every non-white text colour
+in black. White text on dark backgrounds is kept, and icons, dividers
+and other shapes keep their colours. With the *Black and white (every
+non-white pixel black)* dither algorithm gray text already turns black,
+so the toggle is only needed when dithering.
 
 Two additional **Display Settings** options (**Configure → Display
 settings**) add glyph coverage for scripts the bundled fonts do not

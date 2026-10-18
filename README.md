@@ -20,7 +20,10 @@ headless browser or other server component required running.
   (OpenDisplay)
 - **E-ink optimization** - optional post-processing pipeline: autocontrast,
   sharpness, contrast adjustment, and grayscale quantization (2/4/16/256
-  levels with Floyd-Steinberg dithering)
+  levels with Floyd-Steinberg dithering, nearest-color mapping without
+  dithering, or pure black and white with every non-white pixel black)
+  and pixel-perfect text for low-resolution displays; see
+  [Sharp text on low-resolution displays](docs/low_resolution.md)
 - **Jinja2 templates** - heading widgets support Home Assistant templates
   (e.g. `{{ now().strftime('%H:%M') }}`)
 - **ETag support** - conditional HTTP responses so devices skip the download
@@ -105,7 +108,10 @@ After setup, click **Configure** on the integration entry to:
 - **Device settings** - change device model, orientation, or area
 - **Display settings** - update interval, e-ink optimization toggle,
   grayscale levels, sharpness, contrast, and [font settings](docs/fonts.md)
-  for non-Latin scripts (Hebrew, Arabic, CJK, ...)
+  for non-Latin scripts (Hebrew, Arabic, CJK, ...). For low-resolution
+  displays such as the TRMNL OG, see
+  [Sharp text on low-resolution displays](docs/low_resolution.md) for the
+  recommended settings
 - **Add / remove push target** - manage TRMNL webhook URLs
 - **Copy card YAML** - get the Lovelace card snippet for this device
 - **Copy dashboard YAML** - get a full dashboard YAML with cards for all
