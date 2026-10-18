@@ -22,6 +22,10 @@ from custom_components.eink_dashboard.const import (
     COLOR_LIGHT_GRAY,
     DEFAULT_ROW_H,
 )
+from custom_components.eink_dashboard.fonts import (
+    pixel_font_size,
+    pixel_fonts_context,
+)
 from custom_components.eink_dashboard.render import (
     _compute_metrics,
     render_dashboard,
@@ -654,9 +658,13 @@ class TestRenderEntities:
         sizes = {
             int(sz) for sz in re.findall(r'<text[^>]*font-size="(\d+)"', svg)
         }
-        assert m.font_primary in sizes
-        assert m.font_secondary in sizes
-        assert m.font_primary > m.font_secondary
+        # Sizes are snapped to the TRMNL pixel grid (default on).
+        with pixel_fonts_context(True):
+            primary = pixel_font_size(m.font_primary)
+            secondary = pixel_font_size(m.font_secondary)
+        assert primary in sizes
+        assert secondary in sizes
+        assert primary > secondary
 
     def test_entities_bold_value_renders_bold_weight(self) -> None:
         # bold_value=True renders each row's right-aligned state
