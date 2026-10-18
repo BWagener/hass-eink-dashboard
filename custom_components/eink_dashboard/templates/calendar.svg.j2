@@ -35,7 +35,7 @@
     lpad=lpad, rpad=rpad,
     hex_black=hex_black, hex_white=hex_white) }}
 {%- if not loop.last and divider_stroke_w -%}
-<line
+<line class="eink-divider"
   x1="{{ x_off + lpad }}"
   y1="{{ row.y + row_h + divider_y_off }}"
   x2="{{ w - r_inset - rpad }}"

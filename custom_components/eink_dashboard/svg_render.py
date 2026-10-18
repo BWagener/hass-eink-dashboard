@@ -47,6 +47,7 @@ import resvg_py
 from .const import (
     COLOR_BLACK,
     COLOR_WHITE,
+    DEFAULT_BLACK_DIVIDERS,
     DEFAULT_BLACK_TEXT,
     DisplayConfig,
     Widget,
@@ -68,6 +69,22 @@ _STYLE_FILL_RE = re.compile(r"(?<![\w-])(fill\s*:\s*)([^;]*?)(\s*(?:;|$))")
 # Text fills that are kept as-is in black-text mode: white text sits on
 # a dark fill (inverted styles) and would vanish if recoloured.
 _KEEP_TEXT_FILLS = frozenset({_hex_white, "#fff", "white", "none"})
+# Elements templates mark as dividers via an ``eink-divider`` class
+# token.  The class value may use either quote style and may list
+# other classes before or after the token.
+_DIVIDER_TAG_RE = re.compile(
+    r"""<[a-zA-Z][\w:-]*\b[^>]*?(?<![\w-])class\s*=\s*(["'])"""
+    r"""(?:[^"'>]*\s)?eink-divider(?:\s[^"'>]*)?\1[^>]*>"""
+)
+_PAINT_ATTR_RE = re.compile(
+    r"""(?<![\w-])((?:fill|stroke)\s*=\s*)(["'])(.*?)\2"""
+)
+# A ``fill`` or ``stroke`` declaration inside a style value;
+# ``stroke-width`` and similar properties are not matched because
+# ``:`` must follow.
+_STYLE_PAINT_RE = re.compile(
+    r"(?<![\w-])((?:fill|stroke)\s*:\s*)([^;]*?)(\s*(?:;|$))"
+)
 
 _FONTS_DIR = Path(__file__).parent / "fonts" / "Roboto"
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -599,6 +616,49 @@ def _force_black_text(svg: str) -> str:
     return _TEXT_TAG_RE.sub(_fix_tag, svg)
 
 
+def _force_black_dividers(svg: str) -> str:
+    """Recolour every element tagged ``eink-divider`` in ``svg`` to black.
+
+    Thin gray lines are dithered into dotted or broken lines on
+    displays with few gray levels.  Templates mark list dividers,
+    separators and left card bars with an ``eink-divider`` class token;
+    their non-white ``fill`` and ``stroke`` values become black.  White
+    and ``none`` are kept so unpainted parts stay unpainted.  Both the
+    ``fill``/``stroke`` attributes (single- or double-quoted) and
+    ``fill``/``stroke`` declarations inside a ``style`` attribute are
+    rewritten.
+
+    Args:
+        svg: Rendered SVG document.
+
+    Returns:
+        The SVG with divider colours recoloured.
+    """
+
+    def _fix_paint_attr(match: re.Match[str]) -> str:
+        prefix, quote, value = match.groups()
+        if value.strip().lower() in _KEEP_TEXT_FILLS:
+            return match.group(0)
+        return f"{prefix}{quote}{_hex_black}{quote}"
+
+    def _fix_style_paint(match: re.Match[str]) -> str:
+        prefix, value, end = match.groups()
+        if value.strip().lower() in _KEEP_TEXT_FILLS:
+            return match.group(0)
+        return f"{prefix}{_hex_black}{end}"
+
+    def _fix_style_attr(match: re.Match[str]) -> str:
+        prefix, quote, value = match.groups()
+        value = _STYLE_PAINT_RE.sub(_fix_style_paint, value)
+        return f"{prefix}{quote}{value}{quote}"
+
+    def _fix_tag(tag: re.Match[str]) -> str:
+        fixed = _PAINT_ATTR_RE.sub(_fix_paint_attr, tag.group(0))
+        return _STYLE_ATTR_RE.sub(_fix_style_attr, fixed)
+
+    return _DIVIDER_TAG_RE.sub(_fix_tag, svg)
+
+
 def render_widget_svg(
     widget: Widget,
     config: DisplayConfig,
@@ -629,4 +689,6 @@ def render_widget_svg(
     svg = tmpl.render(**ctx)
     if config.get("black_text", DEFAULT_BLACK_TEXT):
         svg = _force_black_text(svg)
+    if config.get("black_dividers", DEFAULT_BLACK_DIVIDERS):
+        svg = _force_black_dividers(svg)
     return svg

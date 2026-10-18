@@ -474,6 +474,179 @@ class TestBlackText:
         return _force_black_text(svg)
 
 
+class TestBlackDividers:
+    _STATES: ClassVar[dict[str, object]] = {
+        "sensor.a": {"state": "1", "attributes": {"friendly_name": "A"}},
+        "sensor.b": {"state": "2", "attributes": {"friendly_name": "B"}},
+    }
+
+    def _entities_svg(self, **overrides: object) -> str:
+        """Render a two-row entities widget with a divider between."""
+        config = {"width": 400, "height": 200, "states": self._STATES}
+        config.update(overrides)
+        w = {
+            "type": "entities",
+            "entities": ["sensor.a", "sensor.b"],
+            "x": 0,
+            "y": 0,
+            "w": 400,
+            "h": 200,
+        }
+        return render_widget_svg(w, config)
+
+    @staticmethod
+    def _divider_colors(svg: str) -> set[str]:
+        """Return stroke/fill colours of elements tagged as dividers."""
+        return {
+            value.lower()
+            for tag in re.findall(r"<[a-z]+\b[^>]*eink-divider[^>]*>", svg)
+            for value in re.findall(r'(?:stroke|fill)="([^"]+)"', tag)
+        }
+
+    def test_default_keeps_light_gray_divider(self) -> None:
+        # Without the option the list divider stays light gray.
+        assert self._divider_colors(self._entities_svg()) == {"#b4b4b4"}
+
+    def test_black_dividers_turns_list_divider_black(self) -> None:
+        # black_dividers=True recolours the list divider to black.
+        colors = self._divider_colors(self._entities_svg(black_dividers=True))
+        assert colors == {"#000000"}, colors
+
+    def test_black_dividers_turns_separator_black(self) -> None:
+        # The gray Separator widget bar becomes solid black.
+        w = {"type": "separator", "x": 0, "y": 0, "w": 200, "h": 10}
+        svg = render_widget_svg(
+            w, {"width": 200, "height": 10, "black_dividers": True}
+        )
+        assert self._divider_colors(svg) == {"#000000"}
+
+    def test_black_dividers_turns_left_bar_black(self) -> None:
+        # The gray left_bar card accent becomes solid black, and stays
+        # gray without the option.
+        w = {
+            "type": "entities",
+            "entities": ["sensor.a"],
+            "card_style": "left_bar",
+            "x": 0,
+            "y": 0,
+            "w": 400,
+            "h": 100,
+        }
+        config: dict[str, object] = {
+            "width": 400,
+            "height": 100,
+            "states": self._STATES,
+        }
+        assert self._divider_colors(render_widget_svg(w, config)) == {
+            "#787878"
+        }
+        config["black_dividers"] = True
+        assert self._divider_colors(render_widget_svg(w, config)) == {
+            "#000000"
+        }
+
+    def test_black_dividers_leaves_other_shapes_alone(self) -> None:
+        # Only tagged dividers change; gray text, white and "none"
+        # values are kept.
+        fixed = self._force(
+            '<text fill="#787878">a</text>'
+            '<rect class="eink-divider" fill="none" stroke="#b4b4b4"/>'
+            '<rect class="eink-divider" fill="#ffffff"/>'
+        )
+        assert '<text fill="#787878">' in fixed
+        assert 'fill="none" stroke="#000000"' in fixed
+        assert '<rect class="eink-divider" fill="#ffffff"/>' in fixed
+
+    def test_black_dividers_ignores_attribute_name_suffixes(self) -> None:
+        # Attributes merely ending in "fill"/"stroke" (e.g. data-fill)
+        # are not recoloured; the real paint attributes are.
+        fixed = self._force(
+            '<rect class="eink-divider" data-fill="#787878"'
+            ' data-stroke="#b4b4b4" fill="#b4b4b4" stroke="#b4b4b4"/>'
+        )
+        assert 'data-fill="#787878"' in fixed
+        assert 'data-stroke="#b4b4b4"' in fixed
+        assert ' fill="#000000" stroke="#000000"' in fixed
+
+    def test_black_dividers_matches_multi_token_class(self) -> None:
+        # The eink-divider token is found among other class names in
+        # any position; look-alike class names are not matched.
+        fixed = self._force(
+            '<line class="eink-divider row" stroke="#b4b4b4"/>'
+            '<line class="row eink-divider" stroke="#b4b4b4"/>'
+            '<line class="a eink-divider b" stroke="#b4b4b4"/>'
+            '<line class="eink-divider-x" stroke="#b4b4b4"/>'
+            '<line class="not-eink-divider" stroke="#b4b4b4"/>'
+        )
+        assert fixed.count('stroke="#000000"') == 3
+        assert '"eink-divider-x" stroke="#b4b4b4"' in fixed
+        assert '"not-eink-divider" stroke="#b4b4b4"' in fixed
+
+    def test_black_dividers_matches_single_quoted_attributes(self) -> None:
+        # Single-quoted class and paint attributes are handled and keep
+        # their quote style.
+        fixed = self._force(
+            "<rect class='eink-divider' fill='#787878' stroke='none'/>"
+        )
+        assert fixed == (
+            "<rect class='eink-divider' fill='#000000' stroke='none'/>"
+        )
+
+    def test_black_dividers_rewrites_style_paint(self) -> None:
+        # fill/stroke declarations inside a style attribute are
+        # recoloured; white, none and other properties are kept.
+        fixed = self._force(
+            '<line class="eink-divider"'
+            ' style="stroke:#b4b4b4; stroke-width:2;fill: none"/>'
+            "<rect class='eink-divider' style='fill:#787878'/>"
+            '<rect class="eink-divider" style="fill:#ffffff"/>'
+        )
+        assert 'style="stroke:#000000; stroke-width:2;fill: none"' in fixed
+        assert "style='fill:#000000'" in fixed
+        assert 'style="fill:#ffffff"' in fixed
+
+    def test_black_dividers_renders_solid_line_when_dithered(self) -> None:
+        # With few gray levels the light-gray divider is dithered into
+        # a broken line; in black it stays solid across its length.
+        svg = self._entities_svg()
+        y = round(float(re.findall(r'<line[^>]*y1="([\d.]+)"', svg)[0]))
+
+        def divider_row(black: bool) -> list[int]:
+            config = {
+                "width": 400,
+                "height": 200,
+                "states": self._STATES,
+                "black_dividers": black,
+                "optimize": True,
+                "display_levels": 2,
+                "dither_algorithm": "floyd_steinberg",
+            }
+            widgets = [
+                {
+                    "type": "entities",
+                    "entities": ["sensor.a", "sensor.b"],
+                    "x": 0,
+                    "y": 0,
+                    "w": 400,
+                    "h": 200,
+                }
+            ]
+            img = render_to_image(widgets, config)
+            return [img.getpixel((x, y)) for x in range(60, 340)]
+
+        assert any(v != 0 for v in divider_row(False))
+        assert all(v == 0 for v in divider_row(True))
+
+    @staticmethod
+    def _force(svg: str) -> str:
+        """Apply the black-divider recolouring to a raw SVG snippet."""
+        from custom_components.eink_dashboard.svg_render import (
+            _force_black_dividers,
+        )
+
+        return _force_black_dividers(svg)
+
+
 class TestLoadFont:
     def test_medium_returns_different_object(self) -> None:
         # medium=True must produce a distinct cached object

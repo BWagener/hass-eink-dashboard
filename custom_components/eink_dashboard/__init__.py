@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 
 from .battery import resolve_battery_level
 from .const import (
+    DEFAULT_BLACK_DIVIDERS,
     DEFAULT_BLACK_TEXT,
     DEFAULT_DISPLAY_LEVELS,
     DEFAULT_EXPOSURE,
@@ -292,6 +293,9 @@ async def _build_display_config(
         ),
         "color_scheme": entry.options.get("color_scheme"),
         "black_text": entry.options.get("black_text", DEFAULT_BLACK_TEXT),
+        "black_dividers": entry.options.get(
+            "black_dividers", DEFAULT_BLACK_DIVIDERS
+        ),
         "font_dir": entry.options.get("font_dir", ""),
         "use_system_fonts": entry.options.get(
             "use_system_fonts", DEFAULT_USE_SYSTEM_FONTS

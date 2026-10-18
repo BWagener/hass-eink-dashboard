@@ -43,7 +43,7 @@
     lpad=lpad, rpad=rpad,
     hex_black=hex_black, hex_white=hex_white) }}
 {%- if row.draw_divider and divider_stroke_w -%}
-<line
+<line class="eink-divider"
   x1="{{ x_off + lpad }}"
   y1="{{ row.y + row_h + divider_y_off }}"
   x2="{{ w - r_inset - rpad }}"
@@ -53,7 +53,7 @@
 {%- endif -%}
 {%- elif row.row_type == "divider" -%}
 {%- if divider_stroke_w -%}
-<line
+<line class="eink-divider"
   x1="{{ x_off + lpad }}"
   y1="{{ row.line_y + divider_y_off }}"
   x2="{{ w - r_inset - rpad }}"
