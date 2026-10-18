@@ -211,6 +211,9 @@
                       font-weight="bold"
     value_bold     -- when true, the right-aligned value text
                       renders font-weight="bold"
+
+  Primary and secondary text are truncated with an ellipsis so they
+  never run into the right-aligned value.
 #}
 {%- macro card_row(
     x, y, w, row_h,
@@ -253,6 +256,21 @@
     icon_outline=icon_outline, icon_no_circle=icon_no_circle,
     letter=letter, letter_font_sz=letter_font_sz) -}}
 {%- set tx = x + lpad + icon_dia + inner_gap -%}
+{# The right-aligned value takes precedence: it is never shortened
+   (except to keep it right of the icon), and the left-hand text is
+   truncated with an ellipsis to end one inner_gap before it. #}
+{%- set value_right = x + w - rpad -%}
+{%- set value = value | string | fit_width(value_right - tx, font_value,
+    "bold" if value_bold else "normal") if value else "" -%}
+{%- set value_w = value | text_width(font_value,
+    "bold" if value_bold else "normal") if value else 0 -%}
+{%- set text_max = value_right - tx
+    - ((value_w + inner_gap) if value else 0) -%}
+{%- set primary = primary | string
+    | fit_width(text_max, font_primary, "medium") -%}
+{%- set secondary = secondary | string | fit_width(text_max,
+    font_secondary, "bold" if secondary_bold else "normal")
+    if secondary else "" -%}
 {# Text block -- vertically center primary + optional secondary #}
 {%- if secondary -%}
 {# (row_h * 4 + 50) // 100 is integer rounding of row_h * 0.04,

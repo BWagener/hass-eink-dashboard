@@ -23,10 +23,12 @@ from PIL import Image
 
 from custom_components.eink_dashboard.svg_render import (
     _TEMPLATE_DIR,
+    _fit_width_filter,
     _jinja_env,
     _make_jinja_env,
     _mdi_svg_filter,
     _svg_to_png,
+    _text_width_filter,
     _weather_svg_filter,
 )
 from tests.helpers import (
@@ -179,6 +181,36 @@ def test_mdi_path_traversal_raises():
     """Verify a path traversal icon name raises ValueError."""
     with pytest.raises(ValueError):
         _mdi_svg_filter("../../etc/passwd", 32)
+
+
+def test_text_width_filter_grows_with_text_and_weight():
+    """Verify text_width measures longer and bolder text as wider."""
+    short = _text_width_filter("Mon", 20)
+    long = _text_width_filter("Monday 10:00", 20)
+    bold = _text_width_filter("Monday 10:00", 20, "bold")
+    assert 0 < short < long < bold
+    assert _text_width_filter("", 20) == 0
+
+
+def test_fit_width_filter_keeps_text_that_fits():
+    """Verify fit_width returns text unchanged when it fits."""
+    assert _fit_width_filter("Doctor", 500, 20) == "Doctor"
+
+
+def test_fit_width_filter_truncates_with_ellipsis():
+    """Verify fit_width shortens text with an ellipsis to fit."""
+    text = "A very long calendar event summary"
+    result = _fit_width_filter(text, 100, 20, "medium")
+    assert result.endswith("\u2026")
+    assert text.startswith(result[:-1])
+    assert _text_width_filter(result, 20, "medium") <= 100
+
+
+def test_fit_width_filter_empty_when_no_room():
+    """Verify fit_width returns an empty string for zero or negative
+    widths, so a dominant value can claim the whole row."""
+    assert _fit_width_filter("Doctor", 0, 20) == ""
+    assert _fit_width_filter("Doctor", -30, 20) == ""
 
 
 def test_unknown_weather_condition_raises():
