@@ -61,6 +61,7 @@ from .const import (
     DEFAULT_HEIGHT,
     DEFAULT_MEASURED_PALETTE,
     DEFAULT_OPTIMIZE,
+    DEFAULT_PIXEL_FONTS,
     DEFAULT_SATURATION,
     DEFAULT_UPDATE_INTERVAL,
     DEFAULT_USE_SYSTEM_FONTS,
@@ -68,6 +69,8 @@ from .const import (
     DOMAIN,
     WidgetType,
     default_list_row_height,
+    resolve_font_family,
+    resolve_pixel_font_max_scale,
 )
 from .push import async_push_image
 from .render import render_dashboard
@@ -272,11 +275,18 @@ class EinkDashboardImage(ImageEntity):
                         "measured_palette", DEFAULT_MEASURED_PALETTE
                     ),
                     "color_scheme": self._entry.options.get("color_scheme"),
+                    "font_family": resolve_font_family(self._entry.options),
                     "black_text": self._entry.options.get(
                         "black_text", DEFAULT_BLACK_TEXT
                     ),
                     "black_dividers": self._entry.options.get(
                         "black_dividers", DEFAULT_BLACK_DIVIDERS
+                    ),
+                    "pixel_fonts": self._entry.options.get(
+                        "pixel_fonts", DEFAULT_PIXEL_FONTS
+                    ),
+                    "pixel_font_max_scale": resolve_pixel_font_max_scale(
+                        self._entry.options
                     ),
                     "font_dir": self._entry.options.get("font_dir", ""),
                     "use_system_fonts": self._entry.options.get(

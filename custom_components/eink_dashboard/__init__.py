@@ -47,6 +47,7 @@ from .const import (
     DEFAULT_DISPLAY_LEVELS,
     DEFAULT_EXPOSURE,
     DEFAULT_HEIGHT,
+    DEFAULT_PIXEL_FONTS,
     DEFAULT_SATURATION,
     DEFAULT_USE_SYSTEM_FONTS,
     DEFAULT_WIDTH,
@@ -58,6 +59,8 @@ from .const import (
     WidgetType,
     default_list_row_height,
     resolve_display,
+    resolve_font_family,
+    resolve_pixel_font_max_scale,
 )
 from .http import EinkLayoutView, EinkPublicImageView
 from .store import EinkDashboardStore
@@ -293,10 +296,13 @@ async def _build_display_config(
             "display_levels", DEFAULT_DISPLAY_LEVELS
         ),
         "color_scheme": entry.options.get("color_scheme"),
+        "font_family": resolve_font_family(entry.options),
         "black_text": entry.options.get("black_text", DEFAULT_BLACK_TEXT),
         "black_dividers": entry.options.get(
             "black_dividers", DEFAULT_BLACK_DIVIDERS
         ),
+        "pixel_fonts": entry.options.get("pixel_fonts", DEFAULT_PIXEL_FONTS),
+        "pixel_font_max_scale": resolve_pixel_font_max_scale(entry.options),
         "font_dir": entry.options.get("font_dir", ""),
         "use_system_fonts": entry.options.get(
             "use_system_fonts", DEFAULT_USE_SYSTEM_FONTS
