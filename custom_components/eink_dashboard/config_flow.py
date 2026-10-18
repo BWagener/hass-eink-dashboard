@@ -122,6 +122,8 @@ _DITHER_ALGO_OPTIONS = [
     "atkinson",
     "stucki",
     "burkes",
+    "none",
+    "threshold",
 ]
 
 _MEASURED_PALETTE_OPTIONS = [
