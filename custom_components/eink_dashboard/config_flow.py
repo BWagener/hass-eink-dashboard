@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 from .const import (
+    DEFAULT_BLACK_TEXT,
     DEFAULT_DISPLAY_LEVELS,
     DEFAULT_DITHER_ALGORITHM,
     DEFAULT_EXPOSURE,
@@ -326,6 +327,10 @@ def _build_display_settings_schema(
                     mode=SelectSelectorMode.LIST,
                 )
             ),
+            vol.Optional(
+                "black_text",
+                default=opts.get("black_text", DEFAULT_BLACK_TEXT),
+            ): bool,
             vol.Optional(
                 "use_system_fonts",
                 default=opts.get("use_system_fonts", DEFAULT_USE_SYSTEM_FONTS),
@@ -1339,8 +1344,9 @@ class EinkDashboardOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         """Update refresh interval, optimize, and image quality settings.
 
-        Also collects ``use_system_fonts`` (top-level, off by default)
-        and, via the Advanced section, ``font_dir`` — both add glyph
+        Also collects ``black_text`` (top-level, off by default),
+        ``use_system_fonts`` (top-level, off by default) and, via the
+        Advanced section, ``font_dir``.  The latter two add glyph
         fallback fonts for scripts the bundled Roboto font does not
         cover, such as Hebrew, Arabic, or CJK. See docs/fonts.md.
 

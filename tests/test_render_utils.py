@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import dataclasses
+import re
 import zoneinfo
 from datetime import UTC, date
 from typing import ClassVar
@@ -36,6 +37,7 @@ from custom_components.eink_dashboard.render import (
     format_number,
     resolve_number_format,
 )
+from custom_components.eink_dashboard.svg_render import render_widget_svg
 from custom_components.eink_dashboard.widgets._helpers import (
     _auto_row_height,
     _card_insets,
@@ -331,6 +333,145 @@ class TestVisibilityConditions:
         img = render_to_image([hidden, visible], self._config(states))
         assert_all_white(img, 10, 10, 190, 44)
         assert_has_dark_pixels(img, 10, 60, 190, 95)
+
+
+class TestBlackText:
+    _STATES: ClassVar[dict[str, object]] = {
+        "sensor.temp": {
+            "state": "21.5",
+            "attributes": {
+                "friendly_name": "Living Room",
+                "unit_of_measurement": "°C",
+            },
+        },
+    }
+
+    def _svg(self, **overrides: object) -> str:
+        """Render an entity widget whose name text is gray by default."""
+        config = {"width": 400, "height": 120, "states": self._STATES}
+        config.update(overrides)
+        w = {
+            "type": "entity",
+            "entity": "sensor.temp",
+            "x": 0,
+            "y": 0,
+            "w": 400,
+            "h": 120,
+        }
+        return render_widget_svg(w, config)
+
+    @staticmethod
+    def _text_fills(svg: str) -> set[str]:
+        """Return the fill colours of every <text> element in ``svg``."""
+        return {
+            fill.lower()
+            for tag in re.findall(r"<text\b[^>]*>", svg)
+            for fill in re.findall(r'fill="([^"]+)"', tag)
+        }
+
+    def test_default_keeps_gray_text(self) -> None:
+        # Without the option the entity name keeps its gray colour.
+        assert "#787878" in self._text_fills(self._svg())
+
+    def test_black_text_turns_gray_text_black(self) -> None:
+        # black_text=True recolours every non-white text fill to black.
+        fills = self._text_fills(self._svg(black_text=True))
+        assert fills <= {"#000000", "#ffffff"}, fills
+        assert "#000000" in fills
+
+    def test_black_text_keeps_white_text(self) -> None:
+        # White text sits on a dark fill (inverted styles), so it must
+        # stay white or it would vanish.
+        fixed = TestBlackText._force(
+            '<text x="1" fill="#ffffff">a</text>'
+            '<text x="2" fill="#787878">b</text>'
+        )
+        assert 'fill="#ffffff">a' in fixed
+        assert 'fill="#000000">b' in fixed
+
+    def test_black_text_leaves_shapes_alone(self) -> None:
+        # Only text is recoloured; gray shapes such as icon circles
+        # keep their colour.
+        fixed = TestBlackText._force(
+            '<circle fill="#787878"/><text fill="#787878">b</text>'
+        )
+        assert '<circle fill="#787878"/>' in fixed
+
+    def test_black_text_keeps_fill_none(self) -> None:
+        # fill="none" (outline-only text) is preserved rather than
+        # being turned into solid black.
+        fixed = TestBlackText._force('<text fill="none">a</text>')
+        assert fixed == '<text fill="none">a</text>'
+
+    def test_black_text_handles_single_quoted_fill(self) -> None:
+        # Single-quoted fill attributes are recoloured too, keeping
+        # their quote style; white single-quoted fills are kept.
+        fixed = TestBlackText._force(
+            "<text fill='#787878'>a</text><text fill='#FFFFFF'>b</text>"
+        )
+        assert "fill='#000000'>a" in fixed
+        assert "fill='#FFFFFF'>b" in fixed
+
+    def test_black_text_handles_style_fill(self) -> None:
+        # A fill declaration inside a style attribute is recoloured,
+        # while other declarations and white/none fills are untouched.
+        fixed = TestBlackText._force(
+            '<text style="font-size:12px; fill: #787878;'
+            ' fill-opacity:0.5">a</text>'
+            "<text style='fill:white'>b</text>"
+            '<text style="fill:none">c</text>'
+        )
+        assert (
+            'style="font-size:12px; fill: #000000;'
+            ' fill-opacity:0.5">a' in fixed
+        )
+        assert "style='fill:white'>b" in fixed
+        assert 'style="fill:none">c' in fixed
+
+    def test_black_text_ignores_similar_attribute_names(self) -> None:
+        # Attributes merely ending in "fill" (e.g. data-fill) and
+        # fill-opacity are not mistaken for the fill attribute.
+        fixed = TestBlackText._force(
+            '<text data-fill="#787878" fill-opacity="0.5"'
+            ' fill="#787878">a</text>'
+        )
+        assert 'data-fill="#787878"' in fixed
+        assert 'fill-opacity="0.5"' in fixed
+        assert ' fill="#000000">a' in fixed
+
+    def test_black_text_renders_no_gray_text_pixels(self) -> None:
+        # The gray name renders in black: no pixel keeps the gray text
+        # colour (anti-aliased edges may still be any shade).
+        config = {
+            "width": 400,
+            "height": 120,
+            "states": self._STATES,
+            "black_text": True,
+        }
+        widgets = [
+            {
+                "type": "entity",
+                "entity": "sensor.temp",
+                "x": 0,
+                "y": 0,
+                "w": 400,
+                "h": 120,
+                "hide_icon": True,
+            }
+        ]
+        gray = 0x78
+        assert render_to_image(widgets, config).histogram()[gray] == 0
+        config["black_text"] = False
+        assert render_to_image(widgets, config).histogram()[gray] > 0
+
+    @staticmethod
+    def _force(svg: str) -> str:
+        """Apply the black-text recolouring to a raw SVG snippet."""
+        from custom_components.eink_dashboard.svg_render import (
+            _force_black_text,
+        )
+
+        return _force_black_text(svg)
 
 
 class TestLoadFont:

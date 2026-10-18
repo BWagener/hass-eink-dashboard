@@ -34,6 +34,7 @@ from __future__ import annotations
 import bisect
 import functools
 import json
+import re
 from collections.abc import Callable
 from pathlib import Path
 from xml.sax.saxutils import quoteattr
@@ -44,7 +45,9 @@ import markupsafe
 import resvg_py
 
 from .const import (
+    COLOR_BLACK,
     COLOR_WHITE,
+    DEFAULT_BLACK_TEXT,
     DisplayConfig,
     Widget,
     WidgetType,
@@ -52,6 +55,19 @@ from .const import (
 )
 
 _hex_white = color_to_hex(COLOR_WHITE)
+_hex_black = color_to_hex(COLOR_BLACK)
+
+_TEXT_TAG_RE = re.compile(r"<text\b[^>]*>")
+# Attribute patterns accept either quote style; the lookbehind keeps
+# names such as ``data-fill`` from matching.
+_FILL_ATTR_RE = re.compile(r"""(?<![\w-])(fill\s*=\s*)(["'])(.*?)\2""")
+_STYLE_ATTR_RE = re.compile(r"""(?<![\w-])(style\s*=\s*)(["'])(.*?)\2""")
+# A ``fill`` declaration inside a style value; ``fill-opacity`` and
+# similar properties are not matched because ``:`` must follow.
+_STYLE_FILL_RE = re.compile(r"(?<![\w-])(fill\s*:\s*)([^;]*?)(\s*(?:;|$))")
+# Text fills that are kept as-is in black-text mode: white text sits on
+# a dark fill (inverted styles) and would vanish if recoloured.
+_KEEP_TEXT_FILLS = frozenset({_hex_white, "#fff", "white", "none"})
 
 _FONTS_DIR = Path(__file__).parent / "fonts" / "Roboto"
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -541,6 +557,48 @@ _SVG_RENDERERS: dict[str, SvgContextFn] = {
 }
 
 
+def _force_black_text(svg: str) -> str:
+    """Recolour every non-white ``<text>`` fill in ``svg`` to black.
+
+    Gray text (names, secondary labels) gets dithered into a speckled
+    dot pattern on displays with few gray levels.  Rewriting the fill on
+    the rendered SVG covers every template and fill variable at once.
+    White fills are kept because they mark text drawn on a dark
+    background; shapes such as icon circles and dividers are untouched.
+    Both the ``fill`` attribute (single- or double-quoted) and a
+    ``fill`` declaration inside a ``style`` attribute are rewritten.
+
+    Args:
+        svg: Rendered SVG document.
+
+    Returns:
+        The SVG with text fills recoloured.
+    """
+
+    def _fix_fill_attr(match: re.Match[str]) -> str:
+        prefix, quote, value = match.groups()
+        if value.strip().lower() in _KEEP_TEXT_FILLS:
+            return match.group(0)
+        return f"{prefix}{quote}{_hex_black}{quote}"
+
+    def _fix_style_fill(match: re.Match[str]) -> str:
+        prefix, value, end = match.groups()
+        if value.strip().lower() in _KEEP_TEXT_FILLS:
+            return match.group(0)
+        return f"{prefix}{_hex_black}{end}"
+
+    def _fix_style_attr(match: re.Match[str]) -> str:
+        prefix, quote, value = match.groups()
+        value = _STYLE_FILL_RE.sub(_fix_style_fill, value)
+        return f"{prefix}{quote}{value}{quote}"
+
+    def _fix_tag(tag: re.Match[str]) -> str:
+        fixed = _FILL_ATTR_RE.sub(_fix_fill_attr, tag.group(0))
+        return _STYLE_ATTR_RE.sub(_fix_style_attr, fixed)
+
+    return _TEXT_TAG_RE.sub(_fix_tag, svg)
+
+
 def render_widget_svg(
     widget: Widget,
     config: DisplayConfig,
@@ -568,4 +626,7 @@ def render_widget_svg(
     wtype = widget["type"]
     ctx = _SVG_RENDERERS[wtype](widget, config)
     tmpl = _jinja_env.get_template(f"{wtype}.svg.j2")
-    return tmpl.render(**ctx)
+    svg = tmpl.render(**ctx)
+    if config.get("black_text", DEFAULT_BLACK_TEXT):
+        svg = _force_black_text(svg)
+    return svg

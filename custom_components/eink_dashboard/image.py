@@ -52,6 +52,7 @@ from . import (
 )
 from .battery import resolve_battery_level
 from .const import (
+    DEFAULT_BLACK_TEXT,
     DEFAULT_DISPLAY_LEVELS,
     DEFAULT_DITHER_ALGORITHM,
     DEFAULT_EXPOSURE,
@@ -268,6 +269,9 @@ class EinkDashboardImage(ImageEntity):
                         "measured_palette", DEFAULT_MEASURED_PALETTE
                     ),
                     "color_scheme": self._entry.options.get("color_scheme"),
+                    "black_text": self._entry.options.get(
+                        "black_text", DEFAULT_BLACK_TEXT
+                    ),
                     "font_dir": self._entry.options.get("font_dir", ""),
                     "use_system_fonts": self._entry.options.get(
                         "use_system_fonts", DEFAULT_USE_SYSTEM_FONTS
