@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
     import pytest
@@ -3072,3 +3072,87 @@ class TestRenderGraph:
         assert 1.0 not in values
         assert 2.0 in values
         assert 3.0 in values
+
+
+class TestRenderGraphAxes:
+    """Verify graph axis layout below the plot.
+
+    Covers the bottom band layout: x-axis labels, extrema, and legend
+    must stack below the plot without overlapping.
+    """
+
+    _DEFAULTS: ClassVar[dict[str, object]] = {
+        "width": 400,
+        "height": 400,
+        "states": MOCK_GRAPH_STATES,
+    }
+
+    def _config(self, **overrides: object) -> dict[str, object]:
+        """Return display config merged with overrides."""
+        return make_config(self._DEFAULTS, **overrides)
+
+    def _widget(self, **overrides: object) -> dict[str, object]:
+        """Return a 400×280 two-entity graph widget with overrides."""
+        w: dict[str, object] = {
+            "type": "graph",
+            "x": 0,
+            "y": 0,
+            "w": 400,
+            "h": 280,
+            "entities": [
+                {"entity": "sensor.temperature"},
+                {"entity": "sensor.humidity"},
+            ],
+        }
+        w.update(overrides)
+        return w
+
+    def _single(self, **overrides: object) -> dict[str, object]:
+        """Return a 400×280 single-entity graph widget with overrides."""
+        w = self._widget(**overrides)
+        w.pop("entities")
+        w.setdefault("entity", "sensor.temperature")
+        return w
+
+    @staticmethod
+    def _ctx(
+        widget: dict[str, object], config: dict[str, object]
+    ) -> dict[str, Any]:
+        """Return the graph template context for ``widget``."""
+        from custom_components.eink_dashboard.widgets.graph import (
+            _build_graph_context,
+        )
+
+        return _build_graph_context(widget, config)  # type: ignore[arg-type]
+
+    # ── Bottom band layout ────────────────────────────────────────────
+
+    def test_legend_below_x_axis_labels(self) -> None:
+        # The legend band starts below the x-axis label text, so the
+        # two never overlap (regression: the legend was drawn on top
+        # of the time labels).
+        ctx = self._ctx(self._widget(), self._config())
+        assert ctx["show_legend"]
+        assert ctx["show_labels"]
+        x_label_bottom = ctx["x_label_y"] + ctx["label_font_sz"]
+        legend_top = ctx["legend_y"]
+        assert legend_top >= x_label_bottom, (legend_top, x_label_bottom)
+
+    def test_extrema_between_x_labels_and_legend(self) -> None:
+        # With labels, extrema and legend all enabled the bands stack
+        # top to bottom without overlapping: plot, x-axis labels,
+        # extrema, legend.
+        ctx = self._ctx(self._widget(show_extrema=True), self._config())
+        x_label_bottom = ctx["x_label_y"] + ctx["label_font_sz"]
+        assert ctx["extrema_y"] >= x_label_bottom
+        extrema_bottom = ctx["extrema_y"] + ctx["extrema_font_sz"]
+        assert ctx["legend_y"] >= extrema_bottom
+        legend_bottom = ctx["legend_y"] + ctx["label_font_sz"]
+        assert legend_bottom <= ctx["h"]
+
+    def test_x_axis_labels_directly_below_plot(self) -> None:
+        # The x-axis labels sit right under the plot area, not under
+        # the legend.
+        ctx = self._ctx(self._widget(), self._config())
+        assert ctx["gy2"] <= ctx["x_label_y"]
+        assert ctx["x_label_y"] - ctx["gy2"] <= ctx["label_font_sz"]

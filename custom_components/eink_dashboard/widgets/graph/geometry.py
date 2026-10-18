@@ -242,7 +242,7 @@ def _extrema_geometry(
     """Compute extrema text geometry and formatted strings.
 
     Finds the data minimum and maximum, formats them with timestamps,
-    and reserves vertical space below the current graph bottom.
+    and reserves a band directly above ``gy2`` for the text.
 
     Args:
         points: Sorted (timestamp, value) data pairs.
@@ -251,7 +251,8 @@ def _extrema_geometry(
             axis labels are disabled — the function then falls back to
             ``max(10, round(graph_h * 0.06))``, the same formula used
             by ``_label_geometry``.
-        gy2: Current bottom edge of the graph area (will be shifted).
+        gy2: Bottom edge of the free area; the band is taken from
+            here upward and the returned ``new_gy2`` is its top.
         config: Display config for locale formatting and time_format.
         graph_h: Pixel height of the graph area (gy2 - gy1), used to
             derive a proportional font size when ``label_font_sz`` is 0.
@@ -265,8 +266,10 @@ def _extrema_geometry(
     """
     efont_sz = label_font_sz or max(10, round(graph_h * 0.06))
     extrema_h = efont_sz + efont_sz // 2
-    extrema_y = gy2
-    new_gy2 = gy2 - extrema_h
+    # The text hangs from the band top, so it stays inside the band
+    # instead of running into whatever lies below gy2.
+    extrema_y = gy2 - extrema_h
+    new_gy2 = extrema_y
 
     time_fmt = str(config.get("time_format", "24"))
     min_pt = min(points, key=lambda p: p[1])
@@ -329,16 +332,16 @@ def _legend_geometry(
     Builds a horizontal legend row with one entry per entity.  For
     line graphs, each entry shows a short dash-pattern line sample;
     for bar charts, a small filled rectangle swatch in the entity's
-    fill color is shown instead.  The legend is placed at ``gy2``
-    and that boundary is shifted upward to reserve space.  When
-    entity names are long enough that entries would overflow the
-    graph width (and overlap each other), names are truncated with
-    an ellipsis to fit.  Each entry's fair share is an equal split
-    of the available width; entries whose name already fits that
-    share keep it in full, and the width they don't use is handed
-    to the remaining (over-budget) entries before those are
-    truncated, so one long name doesn't needlessly shrink short
-    ones.
+    fill color is shown instead.  The legend occupies a band
+    directly above ``gy2``, whose top is returned as the new
+    ``gy2``.  When entity names are long enough that entries would
+    overflow the graph width (and overlap each other), names are
+    truncated with an ellipsis to fit.  Each entry's fair share is
+    an equal split of the available width; entries whose name
+    already fits that share keep it in full, and the width they
+    don't use is handed to the remaining (over-budget) entries
+    before those are truncated, so one long name doesn't needlessly
+    shrink short ones.
 
     Args:
         entity_descs: Normalized entity descriptor list from
@@ -347,7 +350,8 @@ def _legend_geometry(
         gx1: Left edge of the graph area.
         gx2: Right edge of the graph area, used to cap total legend
             width and truncate names that would otherwise overflow.
-        gy2: Current bottom edge of the graph area (shifted up).
+        gy2: Bottom edge of the free area; the band is taken from
+            here upward.
         label_font_sz: Font size from axis labels; 0 triggers the
             same fallback formula as ``_label_geometry``.
         graph_h: Graph area pixel height used when
@@ -373,8 +377,10 @@ def _legend_geometry(
     line_sample_w = font_sz * 2
     gap = font_sz // 2
     legend_h = font_sz + gap
-    legend_y = gy2
-    new_gy2 = gy2 - legend_h
+    # The band is taken from the bottom of the free area, so it never
+    # overlaps bands reserved below it earlier.
+    legend_y = gy2 - legend_h
+    new_gy2 = legend_y
 
     names: list[str] = []
     for desc in entity_descs:

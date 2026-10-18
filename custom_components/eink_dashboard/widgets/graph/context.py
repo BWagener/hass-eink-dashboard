@@ -703,11 +703,29 @@ def _build_graph_context(
     extrema_y = gy2
     show_extrema_ctx = False
 
+    multi_entity = len(entity_descs) > 1
+    show_legend_ctx = multi_entity and has_any_data and show_legend
+    # Use pre-adjustment height for font sizing so it is proportional
+    # to the widget's total graph allocation.  Labels, extrema and
+    # legend share this size.
+    graph_h = gy2 - gy1
+    band_font_sz = max(10, round(graph_h * 0.06))
+    # Bottom edges of the legend and extrema bands, set below.
+    legend_bottom = gy2
+    extrema_bottom = gy2
+
     if primary_points:
+        # Bands below the plot, top to bottom: x-axis labels, extrema,
+        # legend.  Each band is cut from the bottom of the remaining
+        # area, so the legend and extrema bands are reserved first and
+        # the x-axis labels end up directly under the plot.
+        if show_legend_ctx:
+            gy2 -= band_font_sz + band_font_sz // 2
+        extrema_bottom = gy2
+        if show_extrema:
+            gy2 -= band_font_sz + band_font_sz // 2
+
         if show_labels:
-            # Use pre-adjustment height for font sizing so it is
-            # proportional to the widget's total graph allocation.
-            graph_h = gy2 - gy1
             (
                 gx1,
                 gy2,
@@ -731,16 +749,15 @@ def _build_graph_context(
             show_labels_ctx = True
 
         if show_extrema:
-            graph_h_ex = gy2 - gy1
             (
-                gy2,
+                _,
                 extrema_y,
                 extrema_font_sz,
                 extrema_min_str,
                 extrema_max_str,
                 show_extrema_ctx,
             ) = _extrema_geometry(
-                primary_points, label_font_sz, gy2, config, graph_h_ex
+                primary_points, band_font_sz, extrema_bottom, config, graph_h
             )
 
         # Grid lines at the final graph-area top and bottom edges.
@@ -773,20 +790,20 @@ def _build_graph_context(
         y2_max_label_y = gy1
 
     # --- Legend (shown when >1 entity configured) ---
-    multi_entity = len(entity_descs) > 1
-    legend_y = gy2
+    # Its band was reserved above; only the entries are laid out here,
+    # once gx1/gx2 account for the Y-axis labels.
+    legend_y = legend_bottom
     legend_entries: list[dict[str, object]] = []
-    if multi_entity and has_any_data and show_legend:
-        graph_h_leg = gy2 - gy1
+    if show_legend_ctx:
         bar_fills_legend = _BAR_FILL_COLORS if is_bar else None
-        gy2, legend_y, legend_entries = _legend_geometry(
+        _, legend_y, legend_entries = _legend_geometry(
             entity_descs,
             states_dict,
             gx1,
             gx2,
-            gy2,
-            label_font_sz,
-            graph_h_leg,
+            legend_bottom,
+            band_font_sz,
+            graph_h,
             bar_fills=bar_fills_legend,
         )
 
@@ -878,7 +895,7 @@ def _build_graph_context(
         "y2_min_label_y": y2_min_label_y,
         "y2_max_label_y": y2_max_label_y,
         # Legend.
-        "show_legend": multi_entity and has_any_data and show_legend,
+        "show_legend": show_legend_ctx,
         "legend_y": legend_y,
         "legend_entries": legend_entries,
         # Bar chart mode flag consumed by the template.
