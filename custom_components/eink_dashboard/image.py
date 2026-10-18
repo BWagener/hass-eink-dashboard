@@ -48,6 +48,7 @@ from . import (
     _fetch_calendar_events,
     _fetch_forecasts,
     _fetch_history,
+    _ha_time_zone,
 )
 from .battery import resolve_battery_level
 from .const import (
@@ -274,6 +275,7 @@ class EinkDashboardImage(ImageEntity):
                     "first_weekday": first_weekday,
                     "date_format": date_format,
                     "time_format": time_format,
+                    "time_zone": _ha_time_zone(self.hass),
                     "states": states,
                 }
                 level, is_charging = resolve_battery_level(

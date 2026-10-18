@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import zoneinfo
 from typing import TYPE_CHECKING, Any
 
 from .._helpers import _fmt
@@ -88,18 +89,38 @@ def _smooth_fill(
     return f"{path} L {pts[-1][0]},{gy2} L {pts[0][0]},{gy2} Z"
 
 
-def _format_timestamp(ts: float, time_fmt: str) -> str:
+def _resolve_tz(config: DisplayConfig) -> datetime.tzinfo:
+    """Return the display time zone from ``config``, defaulting to UTC.
+
+    ``time_zone`` holds HA's configured IANA zone name.  Missing or
+    unknown names fall back to UTC so rendering never fails.
+    """
+    name = config.get("time_zone")
+    if name:
+        try:
+            return zoneinfo.ZoneInfo(str(name))
+        except (zoneinfo.ZoneInfoNotFoundError, ValueError):
+            pass
+    return datetime.UTC
+
+
+def _format_timestamp(
+    ts: float,
+    time_fmt: str,
+    tz: datetime.tzinfo = datetime.UTC,
+) -> str:
     """Format a Unix timestamp as a short time string.
 
     Args:
-        ts: Unix timestamp (seconds since epoch, UTC).
+        ts: Unix timestamp (seconds since epoch).
         time_fmt: ``"12"`` for 12-hour with AM/PM, any other value
             for 24-hour ``HH:MM`` format.
+        tz: Time zone the time is shown in (default UTC).
 
     Returns:
         Formatted time string.
     """
-    dt = datetime.datetime.fromtimestamp(ts, tz=datetime.UTC)
+    dt = datetime.datetime.fromtimestamp(ts, tz=tz)
     if time_fmt == "12":
         # %-I is GNU libc-only; lstrip("0") is portable.
         return dt.strftime("%I:%M %p").lstrip("0")
@@ -174,10 +195,11 @@ def _label_geometry(
         # body (label_font_sz tall) fits within the original gy2.
         x_label_y = new_gy2 + label_gap
         time_fmt = str(config.get("time_format", "24"))
+        tz = _resolve_tz(config)
         t_oldest = min(t for t, _ in points)
         t_newest = max(t for t, _ in points)
-        x_oldest_str = _format_timestamp(t_oldest, time_fmt)
-        x_newest_str = _format_timestamp(t_newest, time_fmt)
+        x_oldest_str = _format_timestamp(t_oldest, time_fmt, tz)
+        x_newest_str = _format_timestamp(t_newest, time_fmt, tz)
 
     return (
         new_gx1,
@@ -272,15 +294,16 @@ def _extrema_geometry(
     new_gy2 = extrema_y
 
     time_fmt = str(config.get("time_format", "24"))
+    tz = _resolve_tz(config)
     min_pt = min(points, key=lambda p: p[1])
     max_pt = max(points, key=lambda p: p[1])
     extrema_min_str = (
         f"Min: {_fmt(f'{min_pt[1]:.1f}', config)}"
-        f" at {_format_timestamp(min_pt[0], time_fmt)}"
+        f" at {_format_timestamp(min_pt[0], time_fmt, tz)}"
     )
     extrema_max_str = (
         f"Max: {_fmt(f'{max_pt[1]:.1f}', config)}"
-        f" at {_format_timestamp(max_pt[0], time_fmt)}"
+        f" at {_format_timestamp(max_pt[0], time_fmt, tz)}"
     )
     return new_gy2, extrema_y, efont_sz, extrema_min_str, extrema_max_str, True
 

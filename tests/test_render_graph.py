@@ -3075,10 +3075,11 @@ class TestRenderGraph:
 
 
 class TestRenderGraphAxes:
-    """Verify graph axis layout below the plot.
+    """Verify graph axis layout below the plot and local-time labels.
 
     Covers the bottom band layout: x-axis labels, extrema, and legend
-    must stack below the plot without overlapping.
+    must stack below the plot without overlapping.  Time labels must
+    be shown in HA's configured time zone.
     """
 
     _DEFAULTS: ClassVar[dict[str, object]] = {
@@ -3156,3 +3157,28 @@ class TestRenderGraphAxes:
         ctx = self._ctx(self._widget(), self._config())
         assert ctx["gy2"] <= ctx["x_label_y"]
         assert ctx["x_label_y"] - ctx["gy2"] <= ctx["label_font_sz"]
+
+    # ── Time zone ─────────────────────────────────────────────────────
+
+    def test_time_labels_use_configured_time_zone(self) -> None:
+        # Time labels are shown in HA's configured time zone instead
+        # of UTC (Berlin is UTC+2 in May).
+        utc = self._ctx(self._single(), self._config())
+        berlin = self._ctx(
+            self._single(), self._config(time_zone="Europe/Berlin")
+        )
+
+        def minutes(label: object) -> int:
+            hh, mm = str(label).split(":")
+            return int(hh) * 60 + int(mm)
+
+        for key in ("x_oldest_str", "x_newest_str"):
+            assert (minutes(berlin[key]) - minutes(utc[key])) % 1440 == 120
+
+    def test_invalid_time_zone_falls_back_to_utc(self) -> None:
+        # An unknown time zone name does not crash rendering and keeps
+        # the UTC labels.
+        utc = self._ctx(self._single(), self._config())
+        ctx = self._ctx(self._single(), self._config(time_zone="Nowhere/X"))
+        assert ctx["x_oldest_str"] == utc["x_oldest_str"]
+        assert ctx["x_newest_str"] == utc["x_newest_str"]
