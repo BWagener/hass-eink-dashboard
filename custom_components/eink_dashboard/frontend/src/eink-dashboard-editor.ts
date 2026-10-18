@@ -1931,6 +1931,22 @@ export const SCHEMAS: Record<
       title: "Appearance",
       icon: "mdi:palette",
       schema: [
+        {
+          name: "line_width",
+          selector: {
+            number: { min: 1, max: 10, mode: "box" },
+          },
+        },
+        {
+          name: "smoothing",
+          default: true,
+          selector: { boolean: {} },
+        },
+        {
+          name: "show_fill",
+          default: false,
+          selector: { boolean: {} },
+        },
         cardStyleSelector(),
         fontsSection([
           ["day", "Day"],
