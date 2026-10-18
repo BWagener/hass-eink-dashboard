@@ -54,6 +54,7 @@ from .const import (
     NumberFormat,
     TimeFormat,
     WidgetType,
+    default_list_row_height,
     resolve_display,
 )
 from .http import EinkLayoutView, EinkPublicImageView
@@ -252,10 +253,11 @@ async def _build_display_config(
         entry_id: Config entry ID present in ``hass.data[DOMAIN]``.
 
     Returns:
-        Dict with ``width``, ``height``, ``display_levels``,
-        ``font_dir``, ``use_system_fonts``, ``number_format``,
-        ``language``, ``first_weekday``, ``date_format``,
-        ``time_format``, ``time_zone``, ``states``, and (when
+        Dict with ``width``, ``height``, ``row_height``,
+        ``display_levels``, ``font_dir``, ``use_system_fonts``,
+        ``number_format``, ``language``, ``first_weekday``,
+        ``date_format``, ``time_format``, ``time_zone``,
+        ``states``, and (when
         battery data is available) ``device_battery_level`` and
         ``device_battery_charging`` keys suitable for
         ``render_widget_svg()``.
@@ -283,6 +285,7 @@ async def _build_display_config(
     config: dict[str, Any] = {
         "width": entry.options.get("width", DEFAULT_WIDTH),
         "height": entry.options.get("height", DEFAULT_HEIGHT),
+        "row_height": default_list_row_height(entry.options),
         "display_levels": entry.options.get(
             "display_levels", DEFAULT_DISPLAY_LEVELS
         ),

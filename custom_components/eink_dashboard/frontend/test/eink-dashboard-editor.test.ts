@@ -139,6 +139,15 @@ describe("SCHEMAS", () => {
     expect(Object.keys(SCHEMAS).sort()).toEqual(ALL_TYPES.sort());
   });
 
+  it("row_height placeholder uses the display's scaled default", () => {
+    // Lists show the device's density-scaled row height, else 56.
+    for (const t of ["entities", "calendar", "waste_schedule"]) {
+      const scaled = SCHEMAS[t]({ ...DISPLAY, row_height: 33 });
+      expect(findField(scaled, "row_height")?.default).toBe(33);
+      expect(findField(SCHEMAS[t](DISPLAY), "row_height")?.default).toBe(56);
+    }
+  });
+
   it("weather entity field uses domain filter 'weather'", () => {
     const schema = SCHEMAS.weather(DISPLAY);
     const entityField = findField(schema, "entity");

@@ -484,6 +484,33 @@ class TestEinkDashboardConfigFlow:
         assert opts["optimize"] is False
         assert opts["webhook_urls"] == []
 
+    async def test_custom_resolution_stores_ppi(
+        self, hass: HomeAssistant
+    ) -> None:
+        # A custom display's pixel density is offered and saved.
+        flow = await _make_config_flow(hass)
+        await flow.async_step_user(_USER_INPUT_CUSTOM)
+        form = await flow.async_step_custom_resolution(None)
+        keys = {k.schema for k in form["data_schema"].schema}
+        assert "ppi" in keys
+        await flow.async_step_custom_resolution(
+            {"width": 800, "height": 480, "ppi": 124},
+        )
+        result = await flow.async_step_pull_only(None)
+
+        assert result["options"]["ppi"] == 124
+
+    async def test_custom_resolution_rejects_bad_ppi(
+        self, hass: HomeAssistant
+    ) -> None:
+        # Out-of-range densities fail validation.
+        flow = await _make_config_flow(hass)
+        await flow.async_step_user(_USER_INPUT_CUSTOM)
+        with pytest.raises(vol.Invalid):
+            await flow.async_step_custom_resolution(
+                {"width": 800, "height": 480, "ppi": 5},
+            )
+
     async def test_custom_trmnl_webhook_creates_entry(
         self, hass: HomeAssistant
     ) -> None:
@@ -1888,6 +1915,75 @@ class TestEinkDashboardOptionsFlow:
         assert result["data"]["rotation"] == 0
         assert result["data"]["optimize"] is True
         assert result["data"]["display_levels"] == 16
+
+    async def test_device_settings_custom_updates_ppi(
+        self, hass: HomeAssistant
+    ) -> None:
+        # A stored custom display edits its ppi inline in device
+        # settings; clearing the field removes it.
+        base = {
+            "device_model": "custom",
+            "orientation": "portrait",
+            "width": 800,
+            "height": 480,
+            "rotation": 0,
+            "ppi": 124,
+        }
+        flow = await _make_options_flow(hass, base)
+        form = await flow.async_step_device_settings(None)
+        ppi_key = next(
+            k for k in form["data_schema"].schema if k.schema == "ppi"
+        )
+        assert ppi_key.description == {"suggested_value": 124}
+        result = await flow.async_step_device_settings(
+            {"device_model": "custom", "orientation": "portrait", "ppi": 160}
+        )
+        assert result["data"]["ppi"] == 160
+
+        flow = await _make_options_flow(hass, base)
+        result = await flow.async_step_device_settings(
+            {"device_model": "custom", "orientation": "portrait"}
+        )
+        assert "ppi" not in result["data"]
+
+    async def test_device_settings_preset_drops_ppi(
+        self, hass: HomeAssistant
+    ) -> None:
+        # Presets bring their own density, so a custom ppi is removed
+        # and the device settings form does not offer the field.
+        flow = await _make_options_flow(
+            hass,
+            {
+                "device_model": "custom",
+                "orientation": "portrait",
+                "ppi": 124,
+            },
+        )
+        result = await flow.async_step_device_settings(
+            {"device_model": "kindle_pw", "orientation": "portrait"}
+        )
+        assert "ppi" not in result["data"]
+
+        flow = await _make_options_flow(
+            hass, {"device_model": "kindle_pw", "orientation": "portrait"}
+        )
+        form = await flow.async_step_device_settings(None)
+        assert "ppi" not in {k.schema for k in form["data_schema"].schema}
+
+    async def test_options_custom_resolution_saves_ppi(
+        self, hass: HomeAssistant
+    ) -> None:
+        # Switching to a custom display stores the entered ppi.
+        flow = await _make_options_flow(
+            hass, {"device_model": "kindle_pw", "orientation": "portrait"}
+        )
+        await flow.async_step_device_settings(
+            {"device_model": "custom", "orientation": "portrait"}
+        )
+        result = await flow.async_step_custom_resolution(
+            {"width": 800, "height": 480, "ppi": 124}
+        )
+        assert result["data"]["ppi"] == 124
 
     async def test_device_settings_custom_stays_custom_skips_resolution(
         self,

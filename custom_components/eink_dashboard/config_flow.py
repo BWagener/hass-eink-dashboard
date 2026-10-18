@@ -347,6 +347,41 @@ _STEP_CUSTOM_RESOLUTION_SCHEMA = vol.Schema(
     }
 )
 
+# Pixel density of a custom display; scales the default list row height.
+_PPI = vol.All(vol.Coerce(int), vol.Range(min=20, max=1000))
+
+
+def _ppi_field(suggested: int | None) -> dict[Any, Any]:
+    """Return the optional ``ppi`` schema entry for custom displays.
+
+    Args:
+        suggested: Currently stored density, pre-filled in the form.
+
+    Returns:
+        A one-item schema dict to merge into a form schema.
+    """
+    return {
+        vol.Optional("ppi", description={"suggested_value": suggested}): _PPI
+    }
+
+
+def _custom_resolution_schema(device_model: str) -> vol.Schema:
+    """Return the custom resolution schema for a device model.
+
+    Custom displays additionally ask for their pixel density; preset
+    devices using a custom screen portion take it from the preset.
+
+    Args:
+        device_model: Selected device model key.
+
+    Returns:
+        Voluptuous schema for the ``custom_resolution`` step.
+    """
+    if device_model != "custom":
+        return _STEP_CUSTOM_RESOLUTION_SCHEMA
+    return _STEP_CUSTOM_RESOLUTION_SCHEMA.extend(_ppi_field(None))
+
+
 _STEP_WEBHOOK_SCHEMA = vol.Schema(
     {
         vol.Required("webhook_url"): TextSelector(
@@ -669,14 +704,17 @@ class EinkDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Collect width and height for a custom or custom-portion device."""
+        schema = _custom_resolution_schema(self._data.get("device_model", ""))
         if user_input is not None:
-            validated = _STEP_CUSTOM_RESOLUTION_SCHEMA(user_input)
+            validated = schema(user_input)
             self._data.update(
                 {
                     "width": validated["width"],
                     "height": validated["height"],
                 }
             )
+            if "ppi" in validated:
+                self._data["ppi"] = validated["ppi"]
             if "rotation" not in self._data:
                 self._data.update(
                     {
@@ -696,7 +734,7 @@ class EinkDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
             return self._create_pull_entry()
         return self.async_show_form(
             step_id="custom_resolution",
-            data_schema=_STEP_CUSTOM_RESOLUTION_SCHEMA,
+            data_schema=schema,
         )
 
     async def async_step_push_target(
@@ -817,6 +855,10 @@ class EinkDashboardOptionsFlow(OptionsFlow):
         """
         opts = deepcopy(dict(self.config_entry.options))
         opts.update({**self._data, **extra})
+        # ppi only applies to custom displays and is cleared when the
+        # form field is left empty.
+        if "ppi" not in extra:
+            opts.pop("ppi", None)
         if "area_id" not in self._data:
             opts.pop("area_id", None)
         if "battery_entity_id" not in self._data:
@@ -1001,6 +1043,9 @@ class EinkDashboardOptionsFlow(OptionsFlow):
         # Labels are computed from the current stored model/orientation;
         # when the user changes either, we fall back to the separate step
         # so they see correct dimension labels for the new config.
+        is_custom = opts.get("device_model") == "custom"
+        if is_custom:
+            schema_dict.update(_ppi_field(opts.get("ppi")))
         is_trmnl = opts.get("device_model", "").startswith("trmnl_")
         if is_trmnl:
             sp_w, sp_h, _, _ = resolve_display(
@@ -1042,8 +1087,11 @@ class EinkDashboardOptionsFlow(OptionsFlow):
                 self._data["battery_entity_id"] = battery_entity_id
 
             if device_model == "custom":
-                if opts.get("device_model") == "custom":
-                    return self._save_display_entry({})
+                if is_custom:
+                    ppi = validated.get("ppi")
+                    return self._save_display_entry(
+                        {"ppi": ppi} if ppi else {}
+                    )
                 return await self.async_step_custom_resolution()
 
             if device_model.startswith("trmnl_"):
@@ -1167,23 +1215,25 @@ class EinkDashboardOptionsFlow(OptionsFlow):
         """Update canvas dimensions for the custom device model."""
         if not self._data:
             return await self.async_step_device_settings()
+        schema = _custom_resolution_schema(self._data["device_model"])
         if user_input is not None:
-            validated = _STEP_CUSTOM_RESOLUTION_SCHEMA(user_input)
-            return self._save_display_entry(
-                {
-                    "width": validated["width"],
-                    "height": validated["height"],
-                    "rotation": 0,
-                    "optimize": DEFAULT_OPTIMIZE,
-                    "display_levels": DEFAULT_DISPLAY_LEVELS,
-                    "dither_algorithm": DEFAULT_DITHER_ALGORITHM,
-                    "color_scheme": None,
-                    "measured_palette": DEFAULT_MEASURED_PALETTE,
-                }
-            )
+            validated = schema(user_input)
+            extra: dict[str, Any] = {
+                "width": validated["width"],
+                "height": validated["height"],
+                "rotation": 0,
+                "optimize": DEFAULT_OPTIMIZE,
+                "display_levels": DEFAULT_DISPLAY_LEVELS,
+                "dither_algorithm": DEFAULT_DITHER_ALGORITHM,
+                "color_scheme": None,
+                "measured_palette": DEFAULT_MEASURED_PALETTE,
+            }
+            if "ppi" in validated:
+                extra["ppi"] = validated["ppi"]
+            return self._save_display_entry(extra)
         return self.async_show_form(
             step_id="custom_resolution",
-            data_schema=_STEP_CUSTOM_RESOLUTION_SCHEMA,
+            data_schema=schema,
         )
 
     async def async_step_locale_settings(
