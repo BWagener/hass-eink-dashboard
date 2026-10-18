@@ -14,6 +14,7 @@
 
 """Constants, enums, and device presets for the e-ink dashboard."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -38,6 +39,12 @@ DEFAULT_EXPOSURE = 1.0
 DEFAULT_SATURATION = 1.0
 DEFAULT_USE_SYSTEM_FONTS = False
 DEFAULT_ROW_H = 56
+# Pixel density the DEFAULT_ROW_H baseline was designed for (Kindle
+# Paperwhite 1/2, 6" at 758x1024).  List rows default to the same
+# physical height on other devices; see default_list_row_height().
+REFERENCE_PPI = 212
+# Default stroke width in px of the dividers between list rows.
+DEFAULT_DIVIDER_W = 1
 # DEFAULT_METRICS = _compute_metrics(DEFAULT_ROW_H) lives in render.py
 # rather than here to avoid a circular import (render.py imports const.py).
 MAX_WIDGETS = 200
@@ -101,6 +108,11 @@ class DevicePreset:
     ``"auto"`` means use the idealized ``ColorScheme`` derived from
     ``color_scheme`` or ``display_levels``.  Non-auto values match
     keys in ``optimize._MEASURED_PALETTES``."""
+    ppi: int | None = None
+    """Physical pixel density in pixels per inch, derived from the
+    panel diagonal.  Scales the default list row height so rows have
+    the same physical size on every device.  ``None`` when the panel
+    size is unknown; the default then stays at ``DEFAULT_ROW_H``."""
 
 
 DEVICE_PRESETS: dict[str, DevicePreset] = {
@@ -111,6 +123,7 @@ DEVICE_PRESETS: dict[str, DevicePreset] = {
         16,
         True,
         "Amazon",
+        ppi=167,
     ),
     "kindle_pw": DevicePreset(
         "Kindle Paperwhite 1/2/3",
@@ -119,6 +132,7 @@ DEVICE_PRESETS: dict[str, DevicePreset] = {
         16,
         True,
         "Amazon",
+        ppi=212,
     ),
     "kindle_pw4": DevicePreset(
         "Kindle Paperwhite 4",
@@ -127,6 +141,7 @@ DEVICE_PRESETS: dict[str, DevicePreset] = {
         16,
         True,
         "Amazon",
+        ppi=300,
     ),
     "kindle_oasis": DevicePreset(
         "Kindle Oasis 2/3",
@@ -135,6 +150,7 @@ DEVICE_PRESETS: dict[str, DevicePreset] = {
         16,
         True,
         "Amazon",
+        ppi=300,
     ),
     "trmnl_og": DevicePreset(
         "TRMNL OG",
@@ -144,6 +160,7 @@ DEVICE_PRESETS: dict[str, DevicePreset] = {
         True,
         "TRMNL",
         native_landscape=True,
+        ppi=124,
     ),
     "trmnl_x": DevicePreset(
         "TRMNL X",
@@ -153,6 +170,7 @@ DEVICE_PRESETS: dict[str, DevicePreset] = {
         True,
         "TRMNL",
         native_landscape=True,
+        ppi=227,
     ),
     "trmnl_rgb": DevicePreset(
         "TRMNL RGB",
@@ -172,6 +190,7 @@ DEVICE_PRESETS: dict[str, DevicePreset] = {
         "Seeed",
         native_landscape=True,
         integration_dithers=True,
+        ppi=124,
     ),
     "reterminal_e1002": DevicePreset(
         "reTerminal E1002",
@@ -183,6 +202,7 @@ DEVICE_PRESETS: dict[str, DevicePreset] = {
         native_landscape=True,
         integration_dithers=True,
         color_scheme="bwgbry",
+        ppi=128,
     ),
     "reterminal_e1003": DevicePreset(
         "reTerminal E1003",
@@ -193,6 +213,7 @@ DEVICE_PRESETS: dict[str, DevicePreset] = {
         "Seeed",
         native_landscape=True,
         integration_dithers=True,
+        ppi=227,
     ),
     "custom": DevicePreset(
         "Custom",
@@ -220,6 +241,33 @@ def resolve_display(
     if native_portrait == want_portrait:
         return p.width, p.height, 0, p
     return p.height, p.width, 90, p
+
+
+def default_list_row_height(options: Mapping[str, Any]) -> int:
+    """Return the default maximum list row height for a display.
+
+    Scales ``DEFAULT_ROW_H`` by the display's pixel density relative
+    to ``REFERENCE_PPI`` so list rows keep the same physical height:
+    about 33 px on a 7.5" 800x480 panel, 79 px on a 300 ppi Kindle.
+    Custom displays use the user-entered ``ppi`` option.  Displays
+    with an unknown density keep ``DEFAULT_ROW_H``.
+
+    Args:
+        options: Config entry options; ``device_model`` selects the
+            preset, ``ppi`` is the custom display's density.
+
+    Returns:
+        Row height in pixels.
+    """
+    model = options.get("device_model", "custom")
+    if model == "custom":
+        ppi = options.get("ppi")
+    else:
+        preset = DEVICE_PRESETS.get(model)
+        ppi = preset.ppi if preset else None
+    if not ppi:
+        return DEFAULT_ROW_H
+    return max(1, round(DEFAULT_ROW_H * ppi / REFERENCE_PPI))
 
 
 def apply_screen_portion(

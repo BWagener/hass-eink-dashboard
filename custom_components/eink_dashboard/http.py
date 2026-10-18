@@ -29,6 +29,7 @@ from .const import (
     DOMAIN,
     MAX_WIDGETS,
     WidgetType,
+    default_list_row_height,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -75,6 +76,7 @@ class EinkLayoutView(HomeAssistantView):
                     "width": width,
                     "height": height,
                     "display_levels": preset.display_levels,
+                    "row_height": default_list_row_height(entry.options),
                 },
                 "device": {
                     "name": entry.title,

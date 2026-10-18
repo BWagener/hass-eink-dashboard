@@ -46,6 +46,7 @@ from ..const import (
     COLOR_LIGHT_GRAY,
     COLOR_WHITE,
     DEFAULT_CARD_STYLE,
+    DEFAULT_DIVIDER_W,
     DEFAULT_ROW_H,
     DisplayConfig,
     Widget,
@@ -433,6 +434,66 @@ def _widget_dim(widget: Widget, key: str, fallback: int) -> int:
         Dimension in pixels, >= 1.
     """
     return max(1, widget.get(key, fallback))
+
+
+def _max_row_height(widget: Widget, config: DisplayConfig) -> int:
+    """Return the maximum list row height for a widget.
+
+    Reads the widget's ``row_height`` (pixels), falling back to the
+    display's density-scaled ``row_height`` from ``config`` and then
+    to ``DEFAULT_ROW_H``; clamped to >= 1.
+
+    Args:
+        widget: List widget config dict.
+        config: Display config; ``row_height`` is the per-device
+            default from :func:`const.default_list_row_height`.
+
+    Returns:
+        Maximum row height in pixels, >= 1.
+    """
+    row_h = widget.get("row_height") or config.get("row_height")
+    return max(1, int(row_h or DEFAULT_ROW_H))
+
+
+def _list_row_height(
+    content_h: int, num_rows: int, max_row_h: int = DEFAULT_ROW_H
+) -> int:
+    """Return the height of one row in a list widget.
+
+    Rows share ``content_h`` equally but never grow beyond
+    ``max_row_h``, so a tall widget with few rows stacks them at
+    the top instead of blowing them up.  Rows still shrink when the
+    content area is too small.
+
+    Args:
+        content_h: Height available for rows below the title.
+        num_rows: Number of rows to lay out (>= 1).
+        max_row_h: Maximum row height in pixels.
+
+    Returns:
+        Row height in pixels, >= 1.
+    """
+    return max(1, min(max_row_h, content_h // max(1, num_rows)))
+
+
+def _divider_stroke_width(widget: Widget) -> int:
+    """Return the stroke width of the dividers between list rows.
+
+    Uses the widget's ``divider_width`` as a fixed pixel width on
+    every display, falling back to ``DEFAULT_DIVIDER_W`` (1 px).
+    ``0`` hides the dividers.
+
+    Args:
+        widget: Widget config dict; reads the optional
+            ``divider_width`` key.
+
+    Returns:
+        Divider stroke width in pixels, >= 0.
+    """
+    width = widget.get("divider_width")
+    if width is None:
+        return DEFAULT_DIVIDER_W
+    return max(0, int(width))
 
 
 def _auto_row_height(

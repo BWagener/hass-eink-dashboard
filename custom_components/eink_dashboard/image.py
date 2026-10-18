@@ -64,6 +64,7 @@ from .const import (
     DEFAULT_WIDTH,
     DOMAIN,
     WidgetType,
+    default_list_row_height,
 )
 from .push import async_push_image
 from .render import render_dashboard
@@ -247,6 +248,7 @@ class EinkDashboardImage(ImageEntity):
                         "height", DEFAULT_HEIGHT
                     ),
                     "rotation": self._entry.options.get("rotation", 0),
+                    "row_height": default_list_row_height(self._entry.options),
                     "optimize": self._entry.options.get(
                         "optimize", DEFAULT_OPTIMIZE
                     ),

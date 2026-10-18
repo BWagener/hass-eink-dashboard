@@ -455,6 +455,7 @@ class TestEinkLayoutView:
             "width": 758,
             "height": 1024,
             "display_levels": 16,
+            "row_height": 56,
         }
         assert body["device"]["name"] == "Test Dashboard"
         assert body["device"]["model"] == "kindle_pw"
