@@ -32,6 +32,7 @@ from ..const import (
     DEFAULT_CARD_STYLE,
     DEFAULT_ROW_H,
     PADDING,
+    DayLabelFormat,
     DisplayConfig,
     FontWeight,
     Widget,
@@ -108,7 +109,11 @@ def _build_meteogram_context(
             (HA weather entity ID), ``hours`` (forecast window in
             hours, clamped to 8-120; default 24), ``show_cloud_cover``
             (bool, default ``True``), ``show_precipitation`` (bool,
-            default ``True``), ``line_width`` (curve stroke width in
+            default ``True``), ``day_label_format``
+            (``"weekday_month_day"`` -- the default, e.g. "Sun Oct
+            18"; ``"weekday_abbrev"`` "Sun"; ``"weekday_wide"``
+            "Sunday"; ``"month_day"`` "Oct 18"),
+            ``line_width`` (curve stroke width in
             pixels; omitted keeps the height-derived width, an
             explicit value is absolute), ``smoothing`` (bool,
             default ``True``; ``False`` draws straight segments),
@@ -145,6 +150,7 @@ def _build_meteogram_context(
     display_levels = config.get("display_levels", 16)
     show_cloud_cover = bool(widget.get("show_cloud_cover", True))
     show_precipitation = bool(widget.get("show_precipitation", True))
+    day_label_format = _day_label_format(widget)
     # Line appearance options.  Defaults preserve the widget's
     # pre-option rendering: the stroke stays height-derived and no
     # fill is drawn, so existing configs look unchanged.
@@ -386,7 +392,7 @@ def _build_meteogram_context(
         {
             "x": plot_left,
             "show_line": False,
-            "label": _day_label(first_date, language),
+            "label": _day_label(first_date, language, day_label_format),
         }
     )
     cursor = datetime.datetime.combine(
@@ -403,7 +409,7 @@ def _build_meteogram_context(
                 "show_line": True,
                 "line_y1": plot_top,
                 "line_y2": plot_bottom,
-                "label": _day_label(cursor.date(), language),
+                "label": _day_label(cursor.date(), language, day_label_format),
             }
         )
         cursor += datetime.timedelta(days=1)
@@ -1017,18 +1023,56 @@ def _sample_by_time(points: list[tuple[float, float]], frac: float) -> float:
     return points[-1][1]
 
 
-def _day_label(d: datetime.date, language: str) -> str:
-    """Return a day-boundary label: "Weekday Mon D".
+def _day_label_format(widget: Widget) -> DayLabelFormat:
+    """Resolve the day-boundary label format option.
+
+    Args:
+        widget: Widget config dict, carrying the optional
+            ``day_label_format`` key.
+
+    Returns:
+        The configured format.  An unknown or non-string value
+        (stale or hand-edited configs) falls back to
+        ``DayLabelFormat.WEEKDAY_MONTH_DAY`` rather than failing the
+        render.
+    """
+    raw = widget.get("day_label_format", DayLabelFormat.WEEKDAY_MONTH_DAY)
+    try:
+        return DayLabelFormat(raw)
+    except (ValueError, TypeError):
+        return DayLabelFormat.WEEKDAY_MONTH_DAY
+
+
+def _day_label(
+    d: datetime.date,
+    language: str,
+    fmt: DayLabelFormat = DayLabelFormat.WEEKDAY_MONTH_DAY,
+) -> str:
+    """Return a day-boundary label in the configured format.
 
     Args:
         d: Date to format.
         language: BCP 47 language code.
+        fmt: Label format, e.g. ``DayLabelFormat.WEEKDAY_ABBREV``
+            for "Sun".  The default,
+            ``DayLabelFormat.WEEKDAY_MONTH_DAY``, renders "Sun Oct
+            18".
 
     Returns:
         Formatted label string.
     """
-    from ..render import _month_abbrev, _weekday_abbrev
+    from ..render import (
+        _babel_format_date,
+        _month_abbrev,
+        _weekday_abbrev,
+    )
 
     weekday = _weekday_abbrev(d, language)
+    if fmt is DayLabelFormat.WEEKDAY_ABBREV:
+        return weekday
+    if fmt is DayLabelFormat.WEEKDAY_WIDE:
+        return _babel_format_date(d, "EEEE", language)
     month = _month_abbrev(d, language)
+    if fmt is DayLabelFormat.MONTH_DAY:
+        return f"{month} {d.day}"
     return f"{weekday} {month} {d.day}"

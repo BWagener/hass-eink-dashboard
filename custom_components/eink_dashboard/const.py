@@ -531,6 +531,24 @@ class FontWeight(StrEnum):
     """Roboto Bold — SVG ``font-weight="bold"``."""
 
 
+class DayLabelFormat(StrEnum):
+    """Format of the meteogram's day-boundary labels.
+
+    Selects which parts of a date the meteogram's day labels show.
+    Weekday and month names resolve through the CLDR data, so a
+    German display reads ``"Samstag"`` or ``"Mai 2"``.
+    """
+
+    WEEKDAY_MONTH_DAY = "weekday_month_day"
+    """Abbreviated weekday, month and day -- e.g. ``"Sun Oct 18"``."""
+    WEEKDAY_ABBREV = "weekday_abbrev"
+    """Abbreviated weekday only -- e.g. ``"Sun"``."""
+    WEEKDAY_WIDE = "weekday_wide"
+    """Full weekday name only -- e.g. ``"Sunday"``."""
+    MONTH_DAY = "month_day"
+    """Month and day without the weekday -- e.g. ``"Oct 18"``."""
+
+
 class WidgetType(StrEnum):
     """Supported widget type identifiers."""
 
