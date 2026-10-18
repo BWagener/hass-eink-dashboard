@@ -57,3 +57,12 @@ default).
   the quick option → **Use system fonts**.
 - Both can be enabled together; fonts from both sources are loaded
   and resvg picks whichever one covers a given character.
+
+## Black text
+
+Names and secondary labels are drawn in gray. On displays with few
+gray levels, dithering turns that gray into a speckled dot pattern
+that is hard to read at small sizes. The **Black text** toggle
+(**Configure → Display settings**, off by default) renders every
+non-white text colour in black. White text on dark backgrounds is
+kept, and icons, dividers and other shapes keep their colours.
