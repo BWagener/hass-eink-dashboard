@@ -566,11 +566,13 @@ class TestRenderCalendar:
         assert int(m.group(1)) == DEFAULT_ROW_H
 
     def test_calendar_event_summary_in_svg(self) -> None:
-        # Event summary text appears in the rendered SVG.
-        w = self._widget(max_events=1)
+        # Event summary text appears in the rendered SVG.  The row is
+        # wide enough for the full summary next to the date label;
+        # narrower rows truncate it.
+        w = self._widget(max_events=1, w=800)
         with patch(_PATCH_NOW, wraps=dt.date) as mock_dt:
             mock_dt.today.return_value = _TODAY
-            svg = render_widget_svg(w, self._config())
+            svg = render_widget_svg(w, self._config(width=800))
         assert "Doctor Appointment" in svg
 
     def test_calendar_all_day_event_no_time(self) -> None:
@@ -763,3 +765,52 @@ class TestRenderCalendar:
             h,
             threshold=200,
         )
+
+    # ── Overlap tests ─────────────────────────────────
+
+    def test_calendar_long_summary_does_not_overlap_value(self) -> None:
+        # A summary too long for the row is truncated so it ends at
+        # least one inner gap before the right-aligned date label;
+        # the label itself is drawn unchanged.
+        h = DEFAULT_ROW_H
+        m = _compute_metrics(h)
+        long_summary = "Quarterly planning review with the whole team"
+
+        def states_for(summary: str) -> dict[str, Any]:
+            """Build a calendar state with one event titled summary."""
+            event = {
+                "start": "2026-06-15T14:00:00",
+                "end": "2026-06-15T15:00:00",
+                "summary": summary,
+                "all_day": False,
+            }
+            return {
+                "calendar.long": {
+                    "state": "off",
+                    "attributes": {"events": [event]},
+                }
+            }
+
+        states = states_for(long_summary)
+        empty_states = states_for("")
+        w = self._widget(entity="calendar.long", w=300, h=h)
+        with patch(_PATCH_NOW, wraps=dt.date) as mock_dt:
+            mock_dt.today.return_value = _TODAY
+            svg = render_widget_svg(w, self._config(states=states))
+            img = render_to_image([w], self._config(states=states))
+            ref = render_to_image([w], self._config(states=empty_states))
+        assert "\u2026" in svg, "long summary should be truncated"
+        # Leftmost dark column of the date label, from the render
+        # without a summary (right of the icon and text start).
+        text_x = m.padding + m.icon_dia + m.inner_gap
+        value_left = next(
+            x
+            for x in range(text_x, 300)
+            if any(pixel(ref, x, y) < 200 for y in range(h))
+        )
+        # The date label is identical with and without the summary.
+        for x in range(value_left, 300):
+            for y in range(h):
+                assert pixel(img, x, y) == pixel(ref, x, y), (x, y)
+        # The gap in front of the label stays white.
+        assert_all_white(img, value_left - m.inner_gap // 2, 0, value_left, h)

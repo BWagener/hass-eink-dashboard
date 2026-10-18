@@ -416,6 +416,55 @@ def _weather_svg_filter(condition: str, size: int) -> str:
     return markupsafe.Markup(_build_inline_svg(paths, size, "0 0 30 30"))
 
 
+def _text_width_filter(text: str, size: int, weight: str = "normal") -> int:
+    """Measure the rendered pixel width of ``text``.
+
+    Uses the same bundled TTF files that resvg renders with, so the
+    measurement matches the rasterised text.
+
+    Args:
+        text: Text to measure.
+        size: Font size in pixels.
+        weight: ``"normal"``, ``"medium"`` (500) or ``"bold"``.
+
+    Returns:
+        Text advance width in whole pixels.
+    """
+    from .render import _load_font
+
+    font = _load_font(
+        int(size), medium=weight == "medium", bold=weight == "bold"
+    )
+    return round(font.getlength(str(text)))
+
+
+def _fit_width_filter(
+    text: str, max_w: float, size: int, weight: str = "normal"
+) -> str:
+    """Truncate ``text`` with an ellipsis to fit ``max_w`` pixels.
+
+    Args:
+        text: Text to fit.
+        max_w: Available width in pixels; zero or negative leaves no
+            room and yields an empty string.
+        size: Font size in pixels.
+        weight: ``"normal"``, ``"medium"`` (500) or ``"bold"``.
+
+    Returns:
+        ``text`` unchanged when it fits, otherwise the longest prefix
+        plus ``"…"`` that fits, or ``""`` when not even ``"…"`` fits.
+    """
+    from .render import _load_font
+    from .widgets.graph.geometry import _truncate_to_width
+
+    if max_w <= 0:
+        return ""
+    font = _load_font(
+        int(size), medium=weight == "medium", bold=weight == "bold"
+    )
+    return _truncate_to_width(str(text), font, max_w)
+
+
 # The spec (SVG_EVERYTHING.md) says autoescape=False, but we keep
 # autoescape=True: user-controlled text (HA entity states) may
 # contain < or & which would produce invalid SVG/XML and crash
@@ -429,7 +478,8 @@ def _make_jinja_env(
     """Create a Jinja2 env configured for SVG template rendering.
 
     Sets ``autoescape=True`` and registers the ``mdi_svg`` and
-    ``weather_svg`` icon-inlining filters.
+    ``weather_svg`` icon-inlining filters plus the ``text_width`` and
+    ``fit_width`` text-measuring filters.
 
     Args:
         loader: Jinja2 template loader to use.
@@ -441,6 +491,8 @@ def _make_jinja_env(
     env = jinja2.Environment(loader=loader, autoescape=True)
     env.filters["mdi_svg"] = _mdi_svg_filter
     env.filters["weather_svg"] = _weather_svg_filter
+    env.filters["text_width"] = _text_width_filter
+    env.filters["fit_width"] = _fit_width_filter
     return env
 
 
