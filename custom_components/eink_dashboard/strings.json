@@ -92,12 +92,16 @@
           "orientation": "Device orientation",
           "area": "Area",
           "battery_entity_id": "Battery sensor",
+          "width": "Width (px)",
+          "height": "Height (px)",
           "ppi": "Pixel density (PPI)"
         },
         "data_description": {
           "device_model": "Select your e-ink display model",
           "orientation": "Portrait or landscape layout",
           "battery_entity_id": "Entity providing battery level for the Device Battery widget, see the [setup guide]({trmnl_docs_url}) for details",
+          "width": "Canvas width; only used for the Custom device model",
+          "height": "Canvas height; only used for the Custom device model",
           "ppi": "Pixel density of the panel in pixels per inch (resolution diagonal divided by screen diagonal in inches). Scales the default list row height; leave empty for 56 px rows. Only used for the Custom device model."
         },
         "sections": {
