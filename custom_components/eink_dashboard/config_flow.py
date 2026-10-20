@@ -1043,9 +1043,21 @@ class EinkDashboardOptionsFlow(OptionsFlow):
         # Labels are computed from the current stored model/orientation;
         # when the user changes either, we fall back to the separate step
         # so they see correct dimension labels for the new config.
+        # A stored custom display edits its resolution and density
+        # inline; switching to custom still opens custom_resolution.
         is_custom = opts.get("device_model") == "custom"
         if is_custom:
-            schema_dict.update(_ppi_field(opts.get("ppi")))
+            schema_dict.update(
+                {
+                    vol.Required(
+                        "width", default=opts.get("width", DEFAULT_WIDTH)
+                    ): _POSITIVE_INT,
+                    vol.Required(
+                        "height", default=opts.get("height", DEFAULT_HEIGHT)
+                    ): _POSITIVE_INT,
+                    **_ppi_field(opts.get("ppi")),
+                }
+            )
         is_trmnl = opts.get("device_model", "").startswith("trmnl_")
         if is_trmnl:
             sp_w, sp_h, _, _ = resolve_display(
@@ -1088,10 +1100,13 @@ class EinkDashboardOptionsFlow(OptionsFlow):
 
             if device_model == "custom":
                 if is_custom:
-                    ppi = validated.get("ppi")
-                    return self._save_display_entry(
-                        {"ppi": ppi} if ppi else {}
-                    )
+                    extra: dict[str, Any] = {
+                        "width": validated["width"],
+                        "height": validated["height"],
+                    }
+                    if validated.get("ppi"):
+                        extra["ppi"] = validated["ppi"]
+                    return self._save_display_entry(extra)
                 return await self.async_step_custom_resolution()
 
             if device_model.startswith("trmnl_"):

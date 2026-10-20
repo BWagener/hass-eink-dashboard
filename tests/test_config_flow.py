@@ -1946,6 +1946,55 @@ class TestEinkDashboardOptionsFlow:
         )
         assert "ppi" not in result["data"]
 
+    async def test_device_settings_custom_updates_resolution(
+        self, hass: HomeAssistant
+    ) -> None:
+        # A stored custom display edits width and height inline,
+        # pre-filled with the current values, keeping its display
+        # settings.
+        flow = await _make_options_flow(
+            hass,
+            {
+                "device_model": "custom",
+                "orientation": "portrait",
+                "width": 600,
+                "height": 800,
+                "rotation": 0,
+                "display_levels": 2,
+            },
+        )
+        form = await flow.async_step_device_settings(None)
+        defaults = {
+            k.schema: k.default()
+            for k in form["data_schema"].schema
+            if k.schema in ("width", "height")
+        }
+        assert defaults == {"width": 600, "height": 800}
+        result = await flow.async_step_device_settings(
+            {
+                "device_model": "custom",
+                "orientation": "portrait",
+                "width": 800,
+                "height": 480,
+            }
+        )
+
+        assert result["type"] is FlowResultType.CREATE_ENTRY
+        assert result["data"]["width"] == 800
+        assert result["data"]["height"] == 480
+        assert result["data"]["display_levels"] == 2
+
+    async def test_device_settings_preset_hides_resolution(
+        self, hass: HomeAssistant
+    ) -> None:
+        # Preset devices take width and height from the preset.
+        flow = await _make_options_flow(
+            hass, {"device_model": "kindle_pw", "orientation": "portrait"}
+        )
+        form = await flow.async_step_device_settings(None)
+        keys = {k.schema for k in form["data_schema"].schema}
+        assert not keys & {"width", "height"}
+
     async def test_device_settings_preset_drops_ppi(
         self, hass: HomeAssistant
     ) -> None:
