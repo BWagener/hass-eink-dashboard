@@ -27,12 +27,16 @@
     title     -- title string; empty = no output
     font_sz   -- font size in pixels
     x         -- horizontal position (default 0)
+    weight    -- SVG font-weight; "" (default) omits the attribute
 #}
-{%- macro widget_title(title, font_sz, fill, x=0) -%}
+{%- macro widget_title(title, font_sz, fill, x=0, weight="") -%}
 {%- if title -%}
 <text
   x="{{ x }}" y="0"
   font-family="{{ font_sz | font_family(font_family_name) }}"
+{%- if weight %}
+  font-weight="{{ weight }}"
+{%- endif %}
   font-size="{{ font_sz | font_px }}"
   dominant-baseline="hanging"
   fill="{{ fill }}">{{ title }}</text>
@@ -212,10 +216,12 @@
     rpad      -- right padding override; -1 (default) uses padding
     font_value -- font size for the right-aligned value; none
                  (default) falls back to font_secondary
-    secondary_bold -- when true, secondary text renders
-                      font-weight="bold"
-    value_bold     -- when true, the right-aligned value text
-                      renders font-weight="bold"
+    primary_weight  -- SVG font-weight for the primary label; the
+                       default "500" keeps the historical Medium face
+    secondary_weight -- SVG font-weight for the secondary sub-label;
+                       "" (default) omits the attribute (Regular)
+    value_weight    -- SVG font-weight for the right-aligned value;
+                       "" (default) omits the attribute (Regular)
     hide_icon      -- when true, no icon circle, glyph, or letter is
                       drawn and the text starts at the left padding
 
@@ -236,8 +242,9 @@
     letter="",
     lpad=-1, rpad=-1,
     font_value=none,
-    secondary_bold=false,
-    value_bold=false,
+    primary_weight="500",
+    secondary_weight="",
+    value_weight="",
     hide_icon=false
 ) -%}
 {%- set lpad = lpad if lpad >= 0 else padding -%}
@@ -271,18 +278,24 @@
 {# The right-aligned value takes precedence: it is never shortened
    (except to keep it right of the icon), and the left-hand text is
    truncated with an ellipsis to end one inner_gap before it. #}
+{# Callers pass SVG font-weight literals; map them onto the
+   vocabulary the text_width/fit_width filters expect. #}
+{%- set weight_kw = {"400": "normal", "500": "medium",
+    "bold": "bold"} -%}
+{%- set primary_kw = weight_kw.get(primary_weight, "normal") -%}
+{%- set secondary_kw = weight_kw.get(secondary_weight, "normal") -%}
+{%- set value_kw = weight_kw.get(value_weight, "normal") -%}
 {%- set value_right = x + w - rpad -%}
 {%- set value = value | string | fit_width(value_right - tx, font_value,
-    "bold" if value_bold else "normal") if value else "" -%}
-{%- set value_w = value | text_width(font_value,
-    "bold" if value_bold else "normal") if value else 0 -%}
+    value_kw) if value else "" -%}
+{%- set value_w = value | text_width(font_value, value_kw)
+    if value else 0 -%}
 {%- set text_max = value_right - tx
     - ((value_w + inner_gap) if value else 0) -%}
 {%- set primary = primary | string
-    | fit_width(text_max, font_primary, "medium") -%}
+    | fit_width(text_max, font_primary, primary_kw) -%}
 {%- set secondary = secondary | string | fit_width(text_max,
-    font_secondary, "bold" if secondary_bold else "normal")
-    if secondary else "" -%}
+    font_secondary, secondary_kw) if secondary else "" -%}
 {# Text block -- vertically center primary + optional secondary #}
 {%- if secondary -%}
 {# (row_h * 4 + 50) // 100 is integer rounding of row_h * 0.04,
@@ -294,15 +307,15 @@
 {%- set sy = bt + font_primary + lg + font_secondary // 2 -%}
 <text
   x="{{ tx }}" y="{{ py }}"
-  font-family="{{ font_primary | font_family(font_family_name) }}" font-weight="500"
+  font-family="{{ font_primary | font_family(font_family_name) }}" font-weight="{{ primary_weight }}"
   font-size="{{ font_primary | font_px }}"
   dominant-baseline="central"
   fill="{{ primary_fill }}">{{ primary }}</text>
 <text
   x="{{ tx }}" y="{{ sy }}"
   font-family="{{ font_secondary | font_family(font_family_name) }}"
-{%- if secondary_bold %}
-  font-weight="bold"
+{%- if secondary_weight %}
+  font-weight="{{ secondary_weight }}"
 {%- endif %}
   font-size="{{ font_secondary | font_px }}"
   dominant-baseline="central"
@@ -313,7 +326,7 @@
    (bb[1]).  The difference is a few pixels and acceptable for e-ink. #}
 <text
   x="{{ tx }}" y="{{ y + row_h // 2 }}"
-  font-family="{{ font_primary | font_family(font_family_name) }}" font-weight="500"
+  font-family="{{ font_primary | font_family(font_family_name) }}" font-weight="{{ primary_weight }}"
   font-size="{{ font_primary | font_px }}"
   dominant-baseline="central"
   fill="{{ primary_fill }}">{{ primary }}</text>
@@ -323,8 +336,8 @@
 <text
   x="{{ x + w - rpad }}" y="{{ y + row_h // 2 }}"
   font-family="{{ font_value | font_family(font_family_name) }}"
-{%- if value_bold %}
-  font-weight="bold"
+{%- if value_weight %}
+  font-weight="{{ value_weight }}"
 {%- endif %}
   font-size="{{ font_value | font_px }}"
   text-anchor="end"

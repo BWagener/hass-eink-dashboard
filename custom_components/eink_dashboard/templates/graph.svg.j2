@@ -50,8 +50,8 @@
 <text
   x="{{ name_x }}" y="{{ name_y }}"
   font-family="{{ name_font_sz | font_family(font_family_name) }}"
-  font-weight="500"
   font-size="{{ name_font_sz | font_px }}"
+  font-weight="{{ name_weight }}"
   dominant-baseline="central"
   fill="{{ hex_gray }}">{{ name_text }}</text>
 {%- endif -%}
@@ -59,10 +59,8 @@
 <text
   x="{{ value_x }}" y="{{ value_y }}"
   font-family="{{ value_font_sz | font_family(font_family_name) }}"
-{%- if value_bold %}
-  font-weight="bold"
-{%- endif %}
   font-size="{{ value_font_sz | font_px }}"
+  font-weight="{{ value_weight }}"
   dominant-baseline="central"
   fill="{{ hex_black }}">{{ value_text }}</text>
 {%- if unit_text -%}
@@ -70,6 +68,7 @@
   x="{{ unit_x }}" y="{{ unit_y }}"
   font-family="{{ unit_font_sz | font_family(font_family_name) }}"
   font-size="{{ unit_font_sz | font_px }}"
+  font-weight="{{ unit_weight }}"
   dominant-baseline="central"
   fill="{{ hex_gray }}">{{ unit_text }}</text>
 {%- endif -%}
@@ -157,6 +156,7 @@
 {%- for t in y_ticks -%}
 <text x="{{ y_label_x }}" y="{{ t.label_y }}"
   font-family="{{ label_font_sz | font_family(font_family_name) }}"
+  font-weight="{{ axis_font_weight }}"
   font-size="{{ label_font_sz | font_px }}"
   dominant-baseline="{{ t.baseline }}"
   fill="{{ hex_gray }}">{{ t.label }}</text>
@@ -165,6 +165,7 @@
 {%- for t in x_ticks -%}
 <text x="{{ t.label_x }}" y="{{ x_label_y }}"
   font-family="{{ label_font_sz | font_family(font_family_name) }}"
+  font-weight="{{ axis_font_weight }}"
   font-size="{{ label_font_sz | font_px }}"
 {%- if t.anchor != "start" %}
   text-anchor="{{ t.anchor }}"
@@ -178,6 +179,7 @@
 {%- for t in y2_ticks -%}
 <text x="{{ y2_label_right_x }}" y="{{ t.label_y }}"
   font-family="{{ label_font_sz | font_family(font_family_name) }}"
+  font-weight="{{ axis_font_weight }}"
   font-size="{{ label_font_sz | font_px }}"
   text-anchor="end"
   dominant-baseline="{{ t.baseline }}"
@@ -188,11 +190,13 @@
 {%- if show_extrema -%}
 <text x="{{ extrema_left }}" y="{{ extrema_y }}"
   font-family="{{ extrema_font_sz | font_family(font_family_name) }}"
+  font-weight="{{ axis_font_weight }}"
   font-size="{{ extrema_font_sz | font_px }}"
   dominant-baseline="hanging"
   fill="{{ hex_gray }}">{{ extrema_min_str }}</text>
 <text x="{{ extrema_right }}" y="{{ extrema_y }}"
   font-family="{{ extrema_font_sz | font_family(font_family_name) }}"
+  font-weight="{{ axis_font_weight }}"
   font-size="{{ extrema_font_sz | font_px }}"
   text-anchor="end"
   dominant-baseline="hanging"
@@ -220,6 +224,7 @@
 <text x="{{ entry.text_x }}" y="{{ entry.text_y }}"
   font-family="{{ entry.font_sz | font_family(font_family_name) }}"
   font-size="{{ entry.font_sz | font_px }}"
+  font-weight="{{ axis_font_weight }}"
   dominant-baseline="central"
   fill="{{ hex_gray }}">{{ entry.name }}</text>
 {%- endfor -%}

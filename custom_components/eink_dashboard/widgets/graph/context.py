@@ -27,6 +27,7 @@ from ...const import (
     DEFAULT_ROW_H,
     PADDING,
     DisplayConfig,
+    FontWeight,
     Widget,
     color_to_hex,
 )
@@ -53,6 +54,7 @@ from .data import (
     _y_bounds,
 )
 from .geometry import (
+    _axis_font,
     _extrema_geometry,
     _legend_band_height,
     _legend_geometry,
@@ -74,6 +76,7 @@ def _fix_header_layout(
     display_levels: int,
     *,
     state_font_sz: int | None = None,
+    font_scale: float = 1.0,
 ) -> tuple[int, int]:
     """Override header layout fields in the context from _entity_info_context.
 
@@ -82,6 +85,11 @@ def _fix_header_layout(
     row the font sizes and icon geometry must be re-derived from
     ``_compute_metrics(header_h)`` so they match the standard row
     height proportions used by the tile and heading widgets.
+
+    Header text roles resolve through the shared ``resolve_font``
+    API, so the widget's ``fonts`` overrides apply.  The legacy
+    ``state_font_size`` and ``bold_value`` keys supply the value/unit
+    size and the value weight fallbacks respectively.
 
     ``ctx["value_text"]`` is truncated in place to fit between
     ``value_x`` and the icon (or the right card inset, when the icon
@@ -99,27 +107,66 @@ def _fix_header_layout(
         state_font_sz: Optional override for the value/unit font
             size in pixels, from the widget's ``state_font_size``
             config key. Falls back to ``m_hdr.font_secondary`` when
-            omitted.
+            omitted, and loses to an explicit ``fonts.value.size`` /
+            ``fonts.unit.size``.
+        font_scale: Display-level ``font_scale`` multiplier applied
+            to derived sizes that have no explicit override.
 
     Returns:
         ``(gx1, gx2)`` — left and right graph area pixel edges.
     """
-    from ...render import _compute_metrics, _load_font
+    from ...render import (
+        _compute_metrics,
+        _font_weight_svg,
+        _load_role_font,
+        resolve_font,
+    )
 
     m_hdr = _compute_metrics(header_h)
     card_style = str(widget.get("card_style", DEFAULT_CARD_STYLE))
     x_off, r_inset, _bar_w = _card_insets(m_hdr, card_style, display_levels)
     lpad = m_hdr.padding if x_off == 0 else 0
     rpad = m_hdr.padding if r_inset == 0 else 0
-    value_unit_font_sz = (
+
+    # Header text roles resolve through the shared API so the widget's
+    # ``fonts`` overrides and the display-level ``font_scale`` apply.
+    # ``state_font_size`` is the legacy fallback for the value/unit
+    # size, and ``bold_value`` the legacy alias for the value role's
+    # bold weight.
+    value_unit_sz = (
         state_font_sz if state_font_sz is not None else m_hdr.font_secondary
     )
+    value_bold = bool(widget.get("bold_value", False))
+    name_font_sz, name_weight = resolve_font(
+        widget,
+        "name",
+        m_hdr.font_primary,
+        FontWeight.MEDIUM,
+        scale=font_scale,
+    )
+    value_font_sz, value_weight = resolve_font(
+        widget,
+        "value",
+        value_unit_sz,
+        FontWeight.BOLD if value_bold else FontWeight.REGULAR,
+        scale=font_scale,
+    )
+    unit_font_sz, unit_weight = resolve_font(
+        widget,
+        "unit",
+        value_unit_sz,
+        FontWeight.REGULAR,
+        scale=font_scale,
+    )
 
-    ctx["name_font_sz"] = m_hdr.font_primary
+    ctx["name_font_sz"] = name_font_sz
+    ctx["name_weight"] = _font_weight_svg(name_weight)
     ctx["name_y"] = header_h // 2
-    ctx["value_font_sz"] = value_unit_font_sz
+    ctx["value_font_sz"] = value_font_sz
+    ctx["value_weight"] = _font_weight_svg(value_weight)
     ctx["value_y"] = header_h // 2
-    ctx["unit_font_sz"] = value_unit_font_sz
+    ctx["unit_font_sz"] = unit_font_sz
+    ctx["unit_weight"] = _font_weight_svg(unit_weight)
     ctx["unit_y"] = header_h // 2
 
     # When the name is shown, value_x must be shifted right past the
@@ -127,7 +174,7 @@ def _fix_header_layout(
     show_name = bool(widget.get("show_name", True))
     name_text_str = str(ctx.get("name_text", ""))
     if show_name and name_text_str:
-        nf = _load_font(m_hdr.font_primary, medium=True)
+        nf = _load_role_font(name_font_sz, name_weight)
         name_w = round(nf.getlength(name_text_str))
         ctx["value_x"] = cast("int", ctx["name_x"]) + name_w + m_hdr.inner_gap
 
@@ -153,8 +200,7 @@ def _fix_header_layout(
     value_text_str = str(ctx.get("value_text", ""))
     unit_text_str = str(ctx.get("unit_text", ""))
     value_x = cast("int", ctx["value_x"])
-    value_bold = bool(ctx["value_bold"])
-    vf = _load_font(value_unit_font_sz, medium=not value_bold, bold=value_bold)
+    vf = _load_role_font(value_font_sz, value_weight)
     if value_text_str:
         value_text_str = _truncate_to_width(
             value_text_str, vf, max(0, right_bound - value_x)
@@ -308,6 +354,7 @@ def _build_header_context(
         svg_w,
         display_levels,
         state_font_sz=state_font_sz,
+        font_scale=config.get("font_scale", 1.0),
     )
     return ctx, gx1, gx2
 
@@ -677,35 +724,51 @@ def _build_graph_context(
             ``show_legend`` (show the legend below the graph for
             multi-entity widgets; default ``True``; has no effect
             for single-entity widgets, which never show a legend),
-            ``state_font_size`` (override the header value/unit font
-            size in pixels; defaults to
+            ``state_font_size`` (legacy override for the header
+            value/unit font size in pixels; defaults to
             ``_compute_metrics(header_h).font_secondary`` when
-            omitted),
+            omitted, and loses to an explicit ``fonts.value.size`` /
+            ``fonts.unit.size``),
             ``graph`` (chart type: ``"line"`` (default) for a line
             graph with polyline/path elements, or ``"bar"`` for a
             bar chart with ``<rect>`` elements; in bar mode
             ``smoothing`` and ``show_fill`` are ignored),
             ``bold_value`` (render the header value in bold;
-            default ``False``),
+            default ``False``; legacy alias for
+            ``fonts.value.weight: "bold"``),
+            ``fonts`` (per-role font overrides — a mapping of role
+            name to ``{"size": int, "weight": str}``; roles are
+            ``"name"`` (the header name), ``"value"`` (the header
+            state text), ``"unit"`` (the header unit), and
+            ``"axis"`` (axis, extrema, and legend labels).  An
+            omitted ``size`` keeps the widget's derived size scaled
+            by the display-level ``font_scale``; an explicit
+            ``size`` is absolute.  An omitted ``weight`` keeps the
+            role's default: name ``"medium"``, value, unit, and
+            axis ``"regular"``),
             ``decimals`` (exact number of decimal places to show
             for the header value(s); overrides HA's
             ``display_precision`` and device-class defaults),
             ``card_style``, ``x``, ``w``, ``h``.
         config: Display config with ``width``, ``states``,
-            ``display_levels``, and optionally ``time_format``
-            (``"24"`` or ``"12"``; default ``"24"``).
+            ``display_levels``, ``font_scale``, and optionally
+            ``time_format`` (``"24"`` or ``"12"``; default ``"24"``).
 
     Returns:
         Template context dict consumed by ``graph.svg.j2``.
         Returns ``{"w": …, "h": …, "has_entity": False,
         **_color_context()}`` when no entity is present in states.
         Full context includes widget dimensions, card style, metrics,
-        colors, icon geometry, header text, series list, ``is_bar``
+        colors, icon geometry, header text (with resolved role font
+        sizes and SVG weight strings), series list, ``is_bar``
         (bool, ``True`` when ``graph="bar"``), ``legend_is_bar``
-        (bool, controls rect vs line legend swatches), and optional
-        axis labels, grid lines, extrema, secondary Y-axis labels,
-        and legend.
+        (bool, controls rect vs line legend swatches),
+        ``axis_font_weight`` (SVG weight for axis/extrema/legend
+        labels), and optional axis labels, grid lines, extrema,
+        secondary Y-axis labels, and legend.
     """
+    from ...render import _font_weight_svg
+
     x = widget.get("x", PADDING)
     svg_w = _widget_dim(widget, "w", config["width"] - x)
 
@@ -731,6 +794,7 @@ def _build_graph_context(
     show_icon: bool = bool(widget.get("show_icon", True))
     show_legend: bool = bool(widget.get("show_legend", True))
     display_levels = config.get("display_levels", 16)
+    font_scale: float = config.get("font_scale", 1.0)
     # "line" (default) renders polyline/path; "bar" renders <rect>
     # elements.  smoothing and show_fill are ignored in bar mode.
     graph_type: str = str(widget.get("graph", "line"))
@@ -839,9 +903,12 @@ def _build_graph_context(
     y_axis_grid = bool(widget.get("y_axis_grid", False))
     y_axis_unit = bool(widget.get("y_axis_unit", False))
 
-    # One font size for axis labels, extrema and legend, derived from
+    # Axis labels, extrema, and the legend all render with the shared
+    # ``axis`` role, resolved once from the widget so a
+    # ``fonts.axis`` override and the display-level ``font_scale``
+    # reach every one of them.  The default size is proportional to
     # the full graph allocation before any band is reserved.
-    font_sz = max(10, round((gy2 - gy1) * 0.06))
+    font_sz, axis_weight = _axis_font(widget, gy2 - gy1, font_scale)
     label_gap = font_sz // 2
     tick_len = max(3, font_sz // 3)
     show_labels_ctx = bool(primary_points and show_labels)
@@ -891,9 +958,9 @@ def _build_graph_context(
     y_ticks: list[dict[str, object]] = []
     y2_ticks: list[dict[str, object]] = []
     if show_labels_ctx:
-        from ...render import _load_font
+        from ...render import _load_role_font
 
-        label_font = _load_font(font_sz)
+        label_font = _load_role_font(font_sz, axis_weight)
         mark_w = tick_len if y_tick_marks else 0
         y_ticks = _value_axis_ticks(
             prim_y_min,
@@ -949,6 +1016,7 @@ def _build_graph_context(
             font_sz,
             legend_bottom - gy1,
             bar_fills=bar_fills_legend,
+            weight=axis_weight,
         )
 
     # Classic grid lines at the plot's top and bottom edges.
@@ -1065,6 +1133,8 @@ def _build_graph_context(
         # Primary axis labels.
         "show_labels": show_labels_ctx,
         "label_font_sz": label_font_sz,
+        # Axis, extrema, and legend labels share one resolved weight.
+        "axis_font_weight": _font_weight_svg(axis_weight),
         "y_label_x": y_label_x,
         # Legacy min/max and oldest/newest strings (first and last
         # tick) kept for callers that read them directly.

@@ -18,11 +18,48 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from ...const import FontWeight
 from .._helpers import _fmt, _resolve_tz
 from .axes import _format_timestamp
 
 if TYPE_CHECKING:
-    from ...const import DisplayConfig
+    from ...const import DisplayConfig, Widget
+
+
+def _axis_font(
+    widget: Widget | None,
+    graph_h: int,
+    scale: float,
+) -> tuple[int, FontWeight]:
+    """Resolve the shared ``axis`` label role for a graph area height.
+
+    Axis, extrema, and legend annotations all render with the same
+    face, so one role covers them.  The default size is proportional
+    to the graph area's pixel height; an explicit ``fonts.axis.size``
+    overrides it, and ``fonts.axis.weight`` overrides the regular
+    default.
+
+    Args:
+        widget: Widget config dict carrying the optional ``fonts``
+            mapping.  ``None`` (direct geometry unit tests) means no
+            override applies.
+        graph_h: Graph area height in pixels the default size is
+            derived from.
+        scale: Display-level ``font_scale`` multiplier applied to the
+            derived default size.
+
+    Returns:
+        ``(size, weight)`` for the axis label role.
+    """
+    from ...render import resolve_font
+
+    return resolve_font(
+        widget if widget is not None else {},
+        "axis",
+        max(10, round(graph_h * 0.06)),
+        FontWeight.REGULAR,
+        scale=scale,
+    )
 
 
 def _smooth_path(pts: list[tuple[int, int]]) -> str:
@@ -176,6 +213,8 @@ def _legend_geometry(
     label_font_sz: int,
     graph_h: int,
     bar_fills: tuple[str, ...] | None = None,
+    *,
+    weight: FontWeight = FontWeight.REGULAR,
 ) -> tuple[int, int, list[dict[str, object]]]:
     """Compute legend layout below the graph area.
 
@@ -211,6 +250,8 @@ def _legend_geometry(
             When provided, each legend entry includes swatch rect
             geometry keyed as ``swatch_x``, ``swatch_y``,
             ``swatch_w``, ``swatch_h``, ``bar_fill``.
+        weight: Resolved axis label weight, used to load the same
+            face the template renders.
 
     Returns:
         Tuple of ``(new_gy2, legend_y, legend_entries)`` where
@@ -220,10 +261,10 @@ def _legend_geometry(
         ``bar_fill``, ``text_x``, ``text_y``,
         ``stroke_dasharray``, and ``font_sz``.
     """
-    from ...render import _load_font
+    from ...render import _load_role_font
 
     font_sz = label_font_sz or max(10, round(graph_h * 0.06))
-    legend_font = _load_font(font_sz)
+    legend_font = _load_role_font(font_sz, weight)
     line_sample_w = font_sz * 2
     gap = font_sz // 2
     legend_h = _legend_band_height(font_sz)
